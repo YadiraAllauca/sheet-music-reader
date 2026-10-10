@@ -1,6 +1,7 @@
 import { matches, title, type Score } from './library';
 import { getFile } from './storage';
 import { PdfReader } from './pdf';
+import { attachFileSwipe } from './file-swipe';
 
 export function createSplitReader(options: {
   scores: () => Score[];
@@ -36,6 +37,7 @@ export function createSplitReader(options: {
   let generation = 0;
   let ready = false;
   let active = false;
+  let fileQueue: string[] = [];
 
   function search() {
     const value = $<HTMLInputElement>('#secondary-query').value;
@@ -95,6 +97,12 @@ export function createSplitReader(options: {
   async function open(id: string) {
     const score = options.scores().find((item) => item.id === id);
     if (!score) return;
+    if (!fileQueue.includes(id))
+      fileQueue = options
+        .scores()
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name, 'es', { numeric: true }))
+        .map((item) => item.id);
     const request = ++generation;
     ready = false;
     current = score;
@@ -195,6 +203,15 @@ export function createSplitReader(options: {
   $('#secondary-page').onchange = () =>
     void goToPage(Number($<HTMLInputElement>('#secondary-page').value));
   controls();
+  attachFileSwipe(
+    $('#secondary-scroll'),
+    (direction) => {
+      if (!current) return;
+      const id = fileQueue[fileQueue.indexOf(current.id) + direction];
+      if (id) void open(id);
+    },
+    () => ready && !pane.hidden && $('#secondary-search').hidden === true,
+  );
 
   return {
     render,

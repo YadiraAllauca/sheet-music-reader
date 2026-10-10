@@ -39,6 +39,8 @@ Use the lower controls to zoom, fit the page to the pane's width, or choose a pa
 
 **PDF anterior / PDF siguiente** switch files without returning to the library. They follow the library order and filters captured when you enter the reader and stop at either end. Opening a result outside that selection through reader search starts a separate, single-file selection.
 
+On a touch screen, swipe **left for the next PDF** or **right for the previous PDF** inside the score area. Deliberate horizontal swipes change files; vertical movement scrolls the current page. Small drags and multi-finger gestures do not switch files. If the zoomed PDF is wider than its pane, horizontal dragging pans the PDF instead; fit it to the pane to use file swipes again.
+
 Choose **Buscar**:
 
 - **Otra partitura:** find and open another score by filename or path.
@@ -54,7 +56,7 @@ Favorites and the most recent reading page persist for linked files. Files selec
 
 Panes are side-by-side on larger screens and stacked on narrow screens. Click or focus a pane before using the arrow keys to select which PDF receives keyboard navigation.
 
-Use **Buscar segunda partitura** to replace the second PDF. **Cerrar división** returns to one pane and keeps the first score open. The second pane has its own page and zoom controls; previous/next-file navigation belongs to the first reader.
+Use **Buscar segunda partitura** to replace the second PDF. **Cerrar división** returns to one pane and keeps the first score open. The second pane has its own page and zoom controls and supports file swipes independently. Its swipe order is the alphabetical library order captured when selecting the second score; the first pane retains its filtered selection. Previous/next-file buttons belong to the first reader.
 
 ![Two reader panes stacked on a phone](images/mobile-reader.png)
 

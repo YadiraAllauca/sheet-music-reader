@@ -55,7 +55,7 @@ To use an existing Chrome installation on a POSIX shell:
 PLAYWRIGHT_CHANNEL=chrome npm run test:e2e
 ```
 
-The suite covers file selection, offline reopening, folder hierarchies, literal search, multiple linked folders, manual refresh, permission recovery, safe unlinking, reader text search, file navigation, independent split panes, focus mode, previews, and sidebar visibility. Browser fixtures are generated with `pdf-lib`; no private scores are used.
+The suite covers file selection, offline reopening, folder hierarchies, literal search, multiple linked folders, manual refresh, permission recovery, safe unlinking, reader text search, file navigation, touch swipes and native panning, independent split panes, focus mode, previews, and sidebar visibility. Browser fixtures are generated with `pdf-lib`; no private scores are used.
 
 The mobile project emulates a Pixel 7 in Chromium. Persistent folder selection, installation, and cloud-backed providers still need validation on the target physical device.
 

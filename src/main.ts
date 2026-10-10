@@ -99,6 +99,7 @@ import {
 import { PdfReader } from './pdf';
 import { createSplitReader } from './split-reader';
 import { createThumbnails } from './thumbnails';
+import { attachFileSwipe } from './file-swipe';
 import './style.css';
 
 const icon = (name: string, cls = '') =>
@@ -599,6 +600,11 @@ function goToScore(direction: number) {
 }
 $('#previous-score').onclick = () => goToScore(-1);
 $('#next-score').onclick = () => goToScore(1);
+attachFileSwipe(
+  $('#canvas-scroll'),
+  goToScore,
+  () => !!current && !$('#reader').hidden && !$('#pdf-canvas').hidden,
+);
 
 async function remember() {
   if (!current) return;

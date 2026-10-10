@@ -25,6 +25,7 @@ src/
   storage.ts             Session references and saved-progress integration
   pdf.ts                 PDF.js loading, rendering, search, and cleanup
   split-reader.ts        Independent second reader and its controls
+  file-swipe.ts          Touch file gestures that preserve native scrolling
   thumbnails.ts          Visibility-based preview generation and memory cache
   style.css              Responsive layout and visual styles
 scripts/
@@ -85,7 +86,7 @@ Legacy versions may have stored PDF copies in a separate `atril-library` databas
 
 Each pane owns a `PdfReader` instance with its own loaded document, render task, page, zoom, and scroll container. Loading another score or closing a pane cancels rendering and destroys the previous document. Request counters prevent obsolete asynchronous results from replacing a newer selection.
 
-The primary reader captures its previous/next-file queue from the visible library selection. The secondary reader selects documents independently. Both use the same local file access layer and save linked-file progress. If the same score is open twice, its saved progress is the most recently recorded page; there are no separate persistent bookmarks per pane.
+The primary reader captures its previous/next-file queue from the visible library selection. The secondary reader selects documents independently and captures an alphabetical file queue for touch navigation. A shared gesture handler distinguishes deliberate single-finger horizontal swipes from vertical scrolling, small drags, and multi-touch. When a PDF overflows its pane horizontally, native panning takes priority over file switching. Both use the same local file access layer and save linked-file progress. If the same score is open twice, its saved progress is the most recently recorded page; there are no separate persistent bookmarks per pane.
 
 Embedded text is extracted on demand and cached per active document for search. Atril does not run OCR.
 

@@ -421,3 +421,98 @@ test('oculta y muestra la barra lateral sin perder la biblioteca', async ({ page
     await expect(page.locator('#sidebar')).toBeVisible();
   }
 });
+
+test('admite gestos táctiles para cambiar PDF y conserva el scroll y las secciones independientes', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/');
+  const buffer = await pdf(['Primera', 'Segunda']);
+  await page
+    .locator('#file-input')
+    .setInputFiles(
+      ['A', 'B', 'C'].map((name) => ({ name: `${name}.pdf`, mimeType: 'application/pdf', buffer })),
+    );
+  await expect(page.locator('.score-card')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Abrir B', exact: true }).click();
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  const touch = await context.newCDPSession(page);
+  await touch.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 2 });
+  async function swipe(selector: string, dx: number, dy = 0) {
+    const bounds = (await page.locator(selector).boundingBox())!;
+    const startX = bounds.x + bounds.width * (dx < 0 ? 0.75 : 0.25);
+    const startY = bounds.y + bounds.height * (dy < 0 ? 0.75 : 0.35);
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: startX, y: startY }],
+    });
+    for (let step = 1; step <= 6; step++) {
+      await touch.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: startX + (dx * step) / 6, y: startY + (dy * step) / 6 }],
+      });
+    }
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+  const distance = Math.min(180, page.viewportSize()!.width * 0.45);
+  await page.locator('#next-page').click();
+  await expect(page.locator('#page-input')).toHaveValue('2');
+  await swipe('#canvas-scroll', -distance);
+  await expect(page.locator('#reader-title')).toHaveText('C');
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await swipe('#canvas-scroll', distance);
+  await expect(page.locator('#reader-title')).toHaveText('B');
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await expect(page.locator('#page-input')).toHaveValue('2');
+  const viewport = page.viewportSize()!;
+  await page.setViewportSize({ width: viewport.width, height: 480 });
+  await page.waitForFunction(() => {
+    const element = document.querySelector('#canvas-scroll')!;
+    return element.scrollHeight > element.clientHeight;
+  });
+  await page.locator('#canvas-scroll').evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await swipe('#canvas-scroll', 0, -140);
+  await expect
+    .poll(() => page.locator('#canvas-scroll').evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
+  await expect(page.locator('#reader-title')).toHaveText('B');
+  await page.setViewportSize(viewport);
+  await page.getByRole('button', { name: 'Dividir y buscar', exact: true }).click();
+  await page.locator('#secondary-query').fill('B');
+  await page.locator('[data-secondary-open]').click();
+  await expect(page.locator('#secondary-canvas')).toBeVisible();
+  await page.getByRole('button', { name: 'Ocultar controles', exact: true }).click();
+  await swipe('#secondary-scroll', -distance);
+  await expect(page.locator('#secondary-title')).toHaveText('C');
+  await expect(page.locator('#secondary-canvas')).toBeVisible();
+  await expect(page.locator('#reader-title')).toHaveText('B');
+  await swipe('#secondary-scroll', distance);
+  await expect(page.locator('#secondary-title')).toHaveText('B');
+  await expect(page.locator('#secondary-canvas')).toBeVisible();
+  await page.getByRole('button', { name: 'Mostrar controles', exact: true }).click();
+  await page.getByRole('button', { name: 'Cerrar división', exact: true }).click();
+  await page.locator('#zoom-in').click();
+  await page.locator('#zoom-in').click();
+  await page.waitForFunction(() => {
+    const element = document.querySelector('#canvas-scroll')!;
+    return element.scrollWidth > element.clientWidth;
+  });
+  await swipe('#canvas-scroll', -distance);
+  await expect(page.locator('#reader-title')).toHaveText('B');
+  await expect
+    .poll(() => page.locator('#canvas-scroll').evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
+  await page.locator('#fit-page').click();
+  await expect(page.locator('#zoom-label')).toHaveText('100%');
+  await page.waitForFunction(() => {
+    const element = document.querySelector('#canvas-scroll')!;
+    return element.scrollWidth <= element.clientWidth + 2;
+  });
+  await swipe('#canvas-scroll', distance);
+  await expect(page.locator('#reader-title')).toHaveText('A');
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await swipe('#canvas-scroll', distance);
+  await expect(page.locator('#reader-title')).toHaveText('A');
+});

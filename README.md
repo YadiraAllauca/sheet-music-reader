@@ -14,7 +14,7 @@ Built with **TypeScript · Vite · PDF.js · IndexedDB · Progressive Web App AP
 - **Manual refresh:** load linked folders at startup, then check for added, changed, or removed files when you choose.
 - **Fast discovery:** search filenames and paths without case or accent sensitivity; use favorites, recent files, and grid or list views.
 - **Real previews:** first-page thumbnails load near the viewport, one PDF at a time, with a bounded in-memory cache.
-- **Focused reading:** zoom, page navigation, text search, previous/next PDFs, a dark reader background, and collapsible controls.
+- **Focused reading:** zoom, page navigation, text search, previous/next PDFs with touch swipes, a dark reader background, and collapsible controls.
 - **Two scores at once:** independent scrolling, zoom, and page controls; side-by-side on larger screens and stacked on phones.
 - **Installable and offline-capable:** cache the application shell and bundled PDF.js resources after the first online visit.
 
