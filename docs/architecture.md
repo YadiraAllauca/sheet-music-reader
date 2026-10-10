@@ -28,6 +28,7 @@ src/
   pdf-resolution.ts      Native screen density and bounded canvas dimensions
   split-reader.ts        Independent second reader and its controls
   file-swipe.ts          Touch file gestures that preserve native scrolling
+  long-press-selection.ts Delegated touch selection that preserves taps and scrolling
   thumbnails.ts          Visibility-based preview generation and memory cache
   style.css              Responsive layout and visual styles
 scripts/
@@ -77,7 +78,7 @@ Startup restores metadata for cached documents without reading PDF bytes or cons
 
 The sidebar renders nested branches. Disclosure buttons toggle only the corresponding branch, without rebuilding PDF cards or requesting filesystem access. Library cards and previews are limited to the active folder/section and search results.
 
-Checkboxes append PDFs in selection order. The reading-list section ignores the library sort and offers explicit up/down reordering. Starting the list supplies its complete available queue to the primary reader, independent of folder/search filters. Opening a selected PDF directly uses the same order. Reader search can open other files, and the secondary pane retains its independent alphabetical queue. Unavailable IDs are removed after startup restoration, successful refreshes, or explicit library removals.
+Checkboxes append PDFs in selection order. Touch users can also hold a PDF card/row for 450 ms to toggle selection; movement over 10 CSS pixels, multiple fingers, and canceled touches abort the pending hold. The release click is suppressed across card re-renders so it cannot open a PDF or hit a shifted control. Fresh touches reset that suppression. The reading-list section ignores the library sort and offers explicit up/down reordering. Starting the list supplies its complete available queue to the primary reader, independent of folder/search filters. Opening a selected PDF directly uses the same order. Reader search can open other files, and the secondary pane retains its independent alphabetical queue. Unavailable IDs are removed after startup restoration, successful refreshes, or explicit library removals.
 
 The shared path filter also excludes previously cached hidden entries from startup metadata and library queries. Refreshing a folder cleans their persisted copies through normal snapshot reconciliation.
 

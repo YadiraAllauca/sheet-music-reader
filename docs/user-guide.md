@@ -41,7 +41,7 @@ First-page previews load as cards approach the viewport. A sheet-shaped placehol
 
 ## Build an ordered reading list
 
-1. Check **Lista** on each PDF card or row in the order you want to play. You can select across folders or search results.
+1. Check **Lista** on each PDF card or row in the order you want to play. On touch screens, hold the PDF preview or title for about half a second to add or remove it; a short tap still opens the PDF. Moving your finger to scroll cancels the hold. You can select across folders or search results.
 2. Choose **Ver y ordenar** or **Lista de lectura** in the sidebar to review the selection. Use the up/down buttons to change its order.
 3. Choose **Leer lista** to open the first PDF. **PDF anterior / PDF siguiente** and touch swipes follow that list, with a position counter in the reader.
 

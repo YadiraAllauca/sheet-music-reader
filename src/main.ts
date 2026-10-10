@@ -114,6 +114,7 @@ import { PdfReader } from './pdf';
 import { createSplitReader } from './split-reader';
 import { createThumbnails } from './thumbnails';
 import { attachFileSwipe } from './file-swipe';
+import { attachLongPressSelection } from './long-press-selection';
 import './style.css';
 
 const icon = (name: string, cls = '') =>
@@ -170,7 +171,7 @@ $('#app').innerHTML = `
       <div class="stats"><div>${icon('files')}<span><strong id="stat-scores">0</strong> partituras</span></div><div>${icon('folders')}<span><strong id="stat-folders">0</strong> carpetas</span></div><div>${icon('hard-drive')}<span><strong id="stat-size">0 KB</strong> seleccionados</span></div><span class="offline-note">${icon('wifi-off')} Disponibles sin conexión</span></div>
       <div class="library-toolbar"><label class="search-field">${icon('search')}<input id="library-search" type="search" placeholder="Buscar por nombre o carpeta…" aria-label="Buscar partituras" autocomplete="off"/><kbd>/</kbd></label><select id="sort" aria-label="Ordenar partituras"><option value="name">Nombre: A → Z</option><option value="added">Últimas seleccionadas</option><option value="opened">Últimas abiertas</option></select><div class="view-switch"><button class="icon-button" id="grid-view" aria-label="Vista de tarjetas">${icon('layout-grid')}</button><button class="icon-button" id="list-view" aria-label="Vista de lista">${icon('list')}</button></div></div>
       <div class="reading-list-toolbar" id="reading-list-toolbar" hidden><div><strong id="reading-list-summary"></strong><span>Marca PDFs en el orden en que quieres tocarlos.</span></div><div class="reading-list-actions"><button class="button primary" id="start-reading-list">${icon('book-open')} Leer lista</button><button class="button secondary" data-section="reading-list">${icon('list')} Ver y ordenar</button><button class="icon-button" id="clear-reading-list" aria-label="Vaciar lista de lectura" title="Vaciar lista de lectura">${icon('x')}</button></div></div>
-      <div class="results-label" id="results-label"></div><div id="score-list"></div>
+      <div class="results-label" id="results-label"></div><p class="touch-selection-hint" id="touch-selection-hint" hidden>Mantén pulsada una partitura para añadirla o quitarla de la lista.</p><div id="score-list"></div>
       <footer class="library-footer"><span>${icon('lock-keyhole')} Sin cuentas. Sin nube. A tu ritmo.</span><button class="text-button" id="help">Cómo funciona ${icon('arrow-up-right')}</button></footer>
     </section>
   </main>
@@ -333,6 +334,7 @@ function refresh() {
       ? 'El orden que eliges para tocar. Usa las flechas para mover cada partitura.'
       : 'Menos tiempo buscando. Más tiempo tocando.';
   const visible = visibleScores();
+  $('#touch-selection-hint').hidden = !visible.length;
   $('#results-label').textContent =
     `${visible.length} ${visible.length === 1 ? 'partitura' : 'partituras'}${query ? ` para «${query}»` : ''}`;
   $('#grid-view').classList.toggle('selected', layout === 'grid');
@@ -596,10 +598,16 @@ document.addEventListener('change', (event) => {
   const input = event.target as HTMLInputElement;
   const id = input.dataset.selectScore;
   if (!id) return;
+  selectReadingScore(id, input.checked);
+});
+function selectReadingScore(id: string, selected: boolean) {
   readingList = readingList.filter((item) => item !== id);
-  if (input.checked) readingList.push(id);
+  if (selected) readingList.push(id);
   rememberLibrary();
   refresh();
+}
+attachLongPressSelection($('#score-list'), (id) => {
+  selectReadingScore(id, !readingList.includes(id));
 });
 $('#clear-reading-list').onclick = () => {
   readingList = [];

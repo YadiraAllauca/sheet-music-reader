@@ -824,3 +824,83 @@ test('renderiza partituras con densidad nativa y renueva la resolución al ampli
   }
   await page.screenshot({ path: `/tmp/atril-pdf-resolution-${test.info().project.name}.png` });
 });
+
+test('selecciona con pulsación prolongada sin abrir el PDF y conserva toques y scroll', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/');
+  const buffer = await pdf(['Selección táctil']);
+  await page
+    .locator('#file-input')
+    .setInputFiles(
+      ['A', 'B', 'C'].map((name) => ({ name: `${name}.pdf`, mimeType: 'application/pdf', buffer })),
+    );
+  await expect(page.locator('.score-card')).toHaveCount(3);
+  const touch = await context.newCDPSession(page);
+  await touch.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 2 });
+  async function start(name: string) {
+    const score = page.getByRole('button', { name: `Abrir ${name}`, exact: true });
+    await score.scrollIntoViewIfNeeded();
+    const bounds = (await score.boundingBox())!;
+    const point = { x: bounds.x + bounds.width / 2, y: bounds.y + 30 };
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] });
+    return point;
+  }
+  async function end() {
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+  await start('B');
+  await expect(
+    page.getByRole('checkbox', { name: 'Añadir B a la lista', exact: true }),
+  ).toBeChecked();
+  await end();
+  await expect(page.locator('#reader')).toBeHidden();
+  await expect(page.locator('#reading-list-count')).toHaveText('1');
+  await start('C');
+  await expect(
+    page.getByRole('checkbox', { name: 'Añadir C a la lista', exact: true }),
+  ).toBeChecked();
+  await end();
+  await expect(page.locator('#reader')).toBeHidden();
+  await expect(page.locator('#reading-list-count')).toHaveText('2');
+  await start('B');
+  await expect(
+    page.getByRole('checkbox', { name: 'Añadir B a la lista', exact: true }),
+  ).not.toBeChecked();
+  await end();
+  await expect(page.locator('#reading-list-count')).toHaveText('1');
+  await expect(page.locator('#reader')).toBeHidden();
+  // A short touch opens normally, without changing the selection.
+  await start('A');
+  await end();
+  await expect(page.locator('#reader-title')).toHaveText('A');
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await page.locator('#close-reader').click();
+  // Moving to scroll cancels the hold even if the finger remains down afterwards.
+  await page.setViewportSize({ ...page.viewportSize()!, height: 480 });
+  const point = await start('A');
+  const before = await page.evaluate(() => scrollY);
+  for (let step = 1; step <= 5; step++) {
+    await touch.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x: point.x, y: point.y - step * 12 }],
+    });
+  }
+  await page.waitForTimeout(500); // Hold beyond the long-press threshold after scrolling.
+  await end();
+  await expect(
+    page.getByRole('checkbox', { name: 'Añadir A a la lista', exact: true }),
+  ).not.toBeChecked();
+  await expect(page.locator('#reader')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
+  // The same delegated handler works after switching to rows.
+  await page.locator('#list-view').click();
+  await start('B');
+  await expect(
+    page.getByRole('checkbox', { name: 'Añadir B a la lista', exact: true }),
+  ).toBeChecked();
+  await end();
+  await expect(page.locator('#reader')).toBeHidden();
+  await touch.detach();
+});
