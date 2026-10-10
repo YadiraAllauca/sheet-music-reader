@@ -82,6 +82,8 @@ Checkboxes append PDFs in selection order. Touch users can also hold a PDF card/
 
 The shared path filter also excludes previously cached hidden entries from startup metadata and library queries. Refreshing a folder cleans their persisted copies through normal snapshot reconciliation.
 
+Primary-reader library search offers play-next and append actions using `queueReadingScore` in `library-state.ts`. Both edit the persisted reading list and replace the active reader queue with that selection without reopening or rendering the PDF. The current PDF is prepended if absent; play-next moves the chosen ID after it, while append keeps existing IDs in place. Navigation controls and search status labels update immediately. The secondary reader keeps its independent queue.
+
 ## Storage boundaries
 
 | Location              | Contents                                                                                                      |

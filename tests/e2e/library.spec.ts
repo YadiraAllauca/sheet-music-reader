@@ -913,6 +913,81 @@ test('selecciona con pulsación prolongada sin abrir el PDF y conserva toques y 
   await touch.detach();
 });
 
+test('prepara siguientes PDFs desde la búsqueda del lector sin interrumpir la partitura', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const buffer = await pdf(['Primera página', 'Segunda página']);
+  await page.locator('#file-input').setInputFiles(
+    ['A', 'B', 'C', 'D'].map((name) => ({
+      name: `${name}.pdf`,
+      mimeType: 'application/pdf',
+      buffer,
+    })),
+  );
+  await expect(page.locator('.score-card')).toHaveCount(4);
+  // The reader can build a list with PDFs outside the library's active search.
+  await page.locator('#library-search').fill('B');
+  await page.getByRole('button', { name: 'Abrir B', exact: true }).click();
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await page.locator('#page-input').fill('2');
+  await page.locator('#page-input').press('Enter');
+  await expect(page.locator('#page-input')).toHaveValue('2');
+  await page.locator('#zoom-in').click();
+  await expect(page.locator('#zoom-label')).toHaveText('125%');
+  await page.locator('#reader-search-toggle').click();
+  const query = page.locator('#reader-search');
+  await query.fill('C');
+  const scroll = await page.locator('#canvas-scroll').evaluate((element) => {
+    element.scrollTop = 40;
+    return element.scrollTop;
+  });
+  await page.getByRole('button', { name: 'Poner C como siguiente', exact: true }).click();
+  await expect(page.locator('#reader-title')).toHaveText('B');
+  await expect(page.locator('#page-input')).toHaveValue('2');
+  await expect(page.locator('#zoom-label')).toHaveText('125%');
+  expect(await page.locator('#canvas-scroll').evaluate((element) => element.scrollTop)).toBe(
+    scroll,
+  );
+  await expect(page.locator('#reader-queue-position')).toHaveText('1 / 2');
+  await expect(
+    page.getByRole('button', { name: 'Poner C como siguiente', exact: true }),
+  ).toBeDisabled();
+  await expect(page.locator('#reader-results')).toContainText('Siguiente');
+  await query.fill('A');
+  await page.getByRole('button', { name: 'Añadir A al final de la lista', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Añadir A al final de la lista', exact: true }),
+  ).toBeDisabled();
+  await query.fill('D');
+  await page.getByRole('button', { name: 'Poner D como siguiente', exact: true }).click();
+  await expect(page.locator('#reader-title')).toHaveText('B');
+  await expect(page.locator('#page-input')).toHaveValue('2');
+  await expect(page.locator('#reader-queue-position')).toHaveText('1 / 4');
+  await query.fill('B');
+  await expect(page.locator('#reader-results')).toContainText('Leyendo');
+  await expect(page.locator('[data-queue-score]')).toHaveCount(0);
+  await query.fill('');
+  await expect(page.locator('.reader-result')).toHaveCount(4);
+  await page.screenshot({ path: `/tmp/atril-reader-queue-${test.info().project.name}.png` });
+  await page.locator('#close-search').click();
+  for (const name of ['D', 'C', 'A']) {
+    await page.locator('#next-score').click();
+    await expect(page.locator('#reader-title')).toHaveText(name);
+    await expect(page.locator('#pdf-canvas')).toBeVisible();
+  }
+  await expect(page.locator('#next-score')).toBeDisabled();
+  await page.locator('#previous-score').click();
+  await expect(page.locator('#reader-title')).toHaveText('C');
+  await page.locator('#close-reader').click();
+  await expect(page.locator('#reader')).toBeHidden();
+  await page.getByRole('button', { name: 'Ver y ordenar', exact: true }).click();
+  await expect(page.locator('.score-info h2')).toHaveText(['B', 'D', 'C', 'A']);
+  expect(
+    await page.evaluate(() => JSON.parse(localStorage.getItem('atril-library-state')!).readingList),
+  ).toEqual(['B', 'D', 'C', 'A'].map((name) => `Importados/${name}.pdf`));
+});
+
 test('ofrece acciones táctiles amplias y separadas en móvil y tablet', async ({ page }) => {
   const bytes = [...(await pdf(['Estudio táctil']))];
   for (const width of [320, 768]) {

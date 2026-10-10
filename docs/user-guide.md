@@ -49,6 +49,8 @@ First-page previews load as cards approach the viewport. A sheet-shaped placehol
 
 Opening a selected PDF directly also uses the reading-list order. An unselected PDF uses the current library filters and sort order. The list view keeps its explicit order even when the normal library sort changes. Starting **Leer lista** uses the complete selection, even if a search currently hides some selected PDFs.
 
+You can also build the same list while reading: open **Buscar → Otra partitura**, then search by name or folder. **Poner siguiente** inserts that PDF immediately after the current one, moving it if already selected. **Añadir a la lista** appends it without duplicates. These actions keep the current PDF, page, zoom, and scroll position. If the current PDF is not in the list, it is included at the start; existing selected PDFs are retained. The reader's arrows and swipes then follow the updated list. Search results identify **Leyendo**, **Siguiente**, and **En la lista**. Return to **Ver y ordenar** in the library to review or rearrange the selection.
+
 Uncheck a PDF to remove it from the list, or use **Vaciar lista de lectura** to clear the selection. These actions do not remove PDFs from your library or device. Linked-folder selections persist between visits; individually selected files remain session-only, so their list entries disappear after a reload. A successful refresh removes list entries for deleted PDFs. Failed updates retain the existing imported PDFs and list.
 
 ## Read a PDF

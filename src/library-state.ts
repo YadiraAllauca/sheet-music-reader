@@ -46,3 +46,18 @@ export function moveReadingList(ids: string[], id: string, direction: number) {
     [result[index], result[next]] = [result[next], result[index]];
   return result;
 }
+
+export function queueReadingScore(
+  ids: string[],
+  current: string,
+  selected: string,
+  position: 'next' | 'last',
+) {
+  const result = [...new Set(ids)];
+  if (!result.includes(current)) result.unshift(current);
+  if (selected === current || (position === 'last' && result.includes(selected))) return result;
+  const remaining = result.filter((id) => id !== selected);
+  const index = position === 'next' ? remaining.indexOf(current) + 1 : remaining.length;
+  remaining.splice(index, 0, selected);
+  return remaining;
+}

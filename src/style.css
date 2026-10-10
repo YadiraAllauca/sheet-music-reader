@@ -1168,6 +1168,25 @@ select {
 .quick-result:hover {
   background: #f0e7e1;
 }
+.reader-result {
+  border-bottom: 1px solid #e3dad4;
+}
+.reader-result .quick-result {
+  border-bottom: 0;
+}
+.reader-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 8px 14px;
+}
+.reader-result-actions .button {
+  flex: 1 1 130px;
+  justify-content: center;
+  min-height: 44px;
+  font-size: 14px;
+  padding: 9px 10px;
+}
 .text-result {
   width: 100%;
   border: 1px solid #e7ded8;
