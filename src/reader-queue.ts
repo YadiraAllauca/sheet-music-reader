@@ -9,6 +9,82 @@ export function reorderUpcoming(ids: string[], current: string, id: string, targ
   return result;
 }
 
+export interface ReaderEntry {
+  key: string;
+  id: string;
+  queued: boolean;
+  played: boolean;
+}
+
+// Priority entries interrupt the original sequence without moving its cursor.
+export class ReaderSequence {
+  entries: ReaderEntry[] = [];
+  position = 0;
+  private serial = 0;
+
+  get current() {
+    return this.entries[this.position];
+  }
+  get pending() {
+    return this.entries
+      .slice(this.position + 1)
+      .filter((entry) => entry.queued && !entry.played)
+      .map((entry) => entry.id);
+  }
+  start(ids: string[], current: string, pending: string[] = []) {
+    this.entries = [...new Set(ids)].map((id) => this.entry(id, false));
+    this.position = Math.max(
+      0,
+      this.entries.findIndex((entry) => entry.id === current),
+    );
+    for (const id of pending) this.enqueue(id, 'last');
+  }
+  private entry(id: string, queued: boolean): ReaderEntry {
+    return { key: String(++this.serial), id, queued, played: false };
+  }
+  select(id: string, key?: string) {
+    const index = key
+      ? this.entries.findIndex((entry) => entry.key === key)
+      : this.entries.findIndex((entry) => entry.id === id);
+    if (index < 0) return;
+    for (let i = this.position + 1; i <= index; i++)
+      if (this.entries[i].queued) this.entries[i].played = true;
+    this.position = index;
+  }
+  enqueue(id: string, position: 'next' | 'last') {
+    if (!this.current || id === this.current.id) return;
+    const existing = this.entries.findIndex(
+      (entry, index) => index > this.position && entry.queued && !entry.played && entry.id === id,
+    );
+    if (existing >= 0 && position === 'last') return;
+    if (existing >= 0) this.entries.splice(existing, 1);
+    let index = this.position + 1;
+    if (position === 'last') while (this.entries[index]?.queued) index++;
+    this.entries.splice(index, 0, this.entry(id, true));
+  }
+  remove(key: string) {
+    const index = this.entries.findIndex((entry) => entry.key === key);
+    if (index > this.position) this.entries.splice(index, 1);
+  }
+  clearPriority() {
+    this.entries = this.entries.filter(
+      (entry, index) => index <= this.position || !entry.queued || entry.played,
+    );
+  }
+  reorder(key: string, target: string) {
+    const from = this.entries.find((entry) => entry.key === key);
+    const to = this.entries.find((entry) => entry.key === target);
+    if (!this.current || !from || !to || from.queued !== to.queued) return;
+    const keys = reorderUpcoming(
+      this.entries.map((entry) => entry.key),
+      this.current.key,
+      key,
+      target,
+    );
+    this.entries = keys.map((item) => this.entries.find((entry) => entry.key === item)!);
+  }
+}
+
 export function attachQueueDrag(
   container: HTMLElement,
   move: (id: string, target: string) => void,

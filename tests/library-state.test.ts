@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { loadLibraryState, moveReadingList, queueReadingScore } from '../src/library-state';
+import { loadLibraryState, moveReadingList } from '../src/library-state';
 
 it('restaura ubicación, carpetas expandidas y el orden de la lista sin duplicados', () => {
   expect(
@@ -42,18 +42,10 @@ it('reordena la lista respetando extremos y documentos que ya no existen', () =>
   expect(ids).toEqual(['C', 'A', 'B']);
 });
 
-it('prepara el siguiente PDF sin duplicarlo ni alterar el historial o el resto de la lista', () => {
-  const ids = ['A', 'B', 'C', 'D'];
-  expect(queueReadingScore(ids, 'B', 'D', 'next')).toEqual(['A', 'B', 'D', 'C']);
-  expect(queueReadingScore(ids, 'B', 'A', 'next')).toEqual(['B', 'A', 'C', 'D']);
-  expect(queueReadingScore(ids, 'B', 'E', 'next')).toEqual(['A', 'B', 'E', 'C', 'D']);
-  expect(queueReadingScore(ids, 'B', 'B', 'next')).toEqual(ids);
-  expect(ids).toEqual(['A', 'B', 'C', 'D']);
-});
-
-it('inicia una lista desde el PDF abierto y permite añadir al final sin duplicados', () => {
-  expect(queueReadingScore([], 'A', 'C', 'next')).toEqual(['A', 'C']);
-  expect(queueReadingScore(['B', 'C'], 'A', 'D', 'last')).toEqual(['A', 'B', 'C', 'D']);
-  expect(queueReadingScore(['A', 'C'], 'A', 'B', 'last')).toEqual(['A', 'C', 'B']);
-  expect(queueReadingScore(['A', 'C'], 'A', 'C', 'last')).toEqual(['A', 'C']);
+it('restaura la prioridad pendiente separada de la selección normal y sin duplicados', () => {
+  const state = loadLibraryState({
+    getItem: () => JSON.stringify({ readingList: ['A', 'B'], priorityQueue: ['X', 'X', 3, 'Y'] }),
+  });
+  expect(state.readingList).toEqual(['A', 'B']);
+  expect(state.priorityQueue).toEqual(['X', 'Y']);
 });

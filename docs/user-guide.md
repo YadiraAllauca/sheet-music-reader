@@ -43,16 +43,16 @@ First-page previews load as cards approach the viewport. A sheet-shaped placehol
 
 ## Manage your reading queue
 
-Open **Ver cola** in the reader toolbar to see **Ahora** (the current score) and **A continuación** (the PDFs that follow). The panel has **Cola**, **Buscar PDFs**, and **En este PDF** tabs, so you can manage the sequence, add scores, and search document text in one place.
+Open **Ver cola** in the reader toolbar to see **Ahora** (the current score), **Añadidas a la cola** (priority additions), and **Secuencia original** (the normal continuation). The panel has **Cola**, **Buscar PDFs**, and **En este PDF** tabs, so you can manage the sequence, add scores, and search document text in one place.
 
-- **Add:** choose **Agregar partituras**, search by name or folder, and press **+** beside a result. It appends the PDF once; a checkmark identifies a score already in the queue. The result's **⋯ → Poner siguiente** action places it directly after the current PDF.
-- **Reorder:** drag the grip beside an upcoming score. On a keyboard, focus the grip and use Up/Down. The current score and previously read entries remain in place.
-- **Remove:** press **×** beside an upcoming score. **Vaciar** clears all upcoming entries while keeping the current score and history. These actions leave the PDF files in your library and device.
+- **Add:** choose **Agregar partituras**, search by name or folder, and press **+** beside a result. It appends the PDF once to the priority additions, before the original continuation; a checkmark identifies a pending addition. The result's **⋯ → Poner siguiente** action places it directly after the current PDF.
+- **Reorder:** drag the grip beside an upcoming score within its group. On a keyboard, focus the grip and use Up/Down. The current score and previously read entries remain in place.
+- **Remove:** press **×** beside an upcoming score. **Vaciar** clears pending priority additions while keeping the original continuation, current score, and history. These actions leave the PDF files in your library and device.
 - **Navigate:** the reader's previous/next PDF buttons and touch swipes follow this sequence. Opening an upcoming score from the queue jumps directly to it; prior entries remain accessible with the previous button.
 
-Queue edits keep the open PDF, page, zoom, and scroll position. The same saved selection appears under **Cola de partituras** in the library. You can also select **Cola** on cards, hold a card for about half a second on touch screens, or use the library's **Ver cola / Abrir cola** actions to prepare a sequence before opening the reader. The library offers up/down buttons for reordering.
+Queue edits keep the open PDF, page, zoom, and scroll position. To prepare an original sequence, select **Cola** on cards, hold a card for about half a second on touch screens, or use the library's **Ver cola / Abrir cola** actions. The library offers up/down buttons for reordering. Removing or reordering original entries in the reader updates that saved selection; priority additions remain separate.
 
-Opening an unselected PDF starts with the current folder/search order. Adding through reader search builds the explicit queue from the saved selection, including the current PDF at the start if absent. Once edited, the queue becomes the saved selection. Linked-folder selections survive reloads; individually selected PDFs remain session-only. Deleted or unavailable entries are pruned during restoration and successful refreshes. Search text is not persisted.
+Opening an unselected PDF starts with the current folder/search order. Priority additions interrupt that sequence and, once read, are consumed: starting at A in A → B → C and adding X gives A → X → B → C. Adding C as a priority gives A → C → B → C, since its original occurrence stays in place. Previous navigation still accesses read entries. Linked-folder selections and pending priority additions survive reloads; the reader's active position and history are session-only. Individually selected PDFs remain session-only. Unavailable entries are pruned when restoring the sequence. Search text is not persisted.
 
 ## Read a PDF
 

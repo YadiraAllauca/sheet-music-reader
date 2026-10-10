@@ -913,6 +913,62 @@ test('selecciona con pulsación prolongada sin abrir el PDF y conserva toques y 
   await touch.detach();
 });
 
+test('termina los PDFs añadidos y retoma la secuencia original sin perder su posición', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const bytes = [...(await pdf(['Secuencia de ensayo']))];
+  await page.evaluate((data) => {
+    const transfer = new DataTransfer();
+    for (const name of ['A', 'B', 'C', 'X', 'Y']) {
+      const file = new File([new Uint8Array(data)], `${name}.pdf`, { type: 'application/pdf' });
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: `${['X', 'Y'].includes(name) ? 'Extra' : 'Base'}/${name}.pdf`,
+      });
+      transfer.items.add(file);
+    }
+    const input = document.querySelector<HTMLInputElement>('#folder-input')!;
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change'));
+  }, bytes);
+  await expect(page.locator('.score-card')).toHaveCount(5);
+  if (page.viewportSize()!.width <= 650) await page.locator('#menu').click();
+  await page.locator('[data-folder="Base"]').click();
+  await page.getByRole('button', { name: 'Abrir A', exact: true }).click();
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await page.locator('#reader-search-toggle').click();
+  for (const name of ['X', 'Y']) {
+    await page.locator('#reader-search').fill(name);
+    await page
+      .getByRole('button', { name: `Añadir ${name} al final de la cola`, exact: true })
+      .click();
+  }
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('atril-library-state')!));
+  expect(saved.readingList).toEqual([]);
+  expect(saved.priorityQueue).toEqual(['Extra/X.pdf', 'Extra/Y.pdf']);
+  await page.getByRole('button', { name: 'Cola', exact: true }).click();
+  await expect(page.locator('.queue-priority .queue-score strong')).toHaveText(['X', 'Y']);
+  await expect(page.locator('.queue-normal .queue-score strong')).toHaveText(['B', 'C']);
+  await page.screenshot({ path: `/tmp/atril-priority-queue-${test.info().project.name}.png` });
+  await page.locator('#close-search').click();
+  for (const name of ['X', 'Y', 'B', 'C']) {
+    await page.locator('#next-score').click();
+    await expect(page.locator('#reader-title')).toHaveText(name);
+    await expect(page.locator('#pdf-canvas')).toBeVisible();
+  }
+  await expect(page.locator('#next-score')).toBeDisabled();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('atril-library-state')!).priorityQueue,
+    ),
+  ).toEqual([]);
+  for (const name of ['B', 'Y', 'X', 'A']) {
+    await page.locator('#previous-score').click();
+    await expect(page.locator('#reader-title')).toHaveText(name);
+    await expect(page.locator('#pdf-canvas')).toBeVisible();
+  }
+});
+
 test('prepara siguientes PDFs desde la búsqueda del lector sin interrumpir la partitura', async ({
   page,
 }) => {
@@ -984,11 +1040,9 @@ test('prepara siguientes PDFs desde la búsqueda del lector sin interrumpir la p
   await expect(page.locator('#reader-title')).toHaveText('C');
   await page.locator('#close-reader').click();
   await expect(page.locator('#reader')).toBeHidden();
-  await page.getByRole('button', { name: 'Ver cola', exact: true }).click();
-  await expect(page.locator('.score-info h2')).toHaveText(['B', 'D', 'C', 'A']);
-  expect(
-    await page.evaluate(() => JSON.parse(localStorage.getItem('atril-library-state')!).readingList),
-  ).toEqual(['B', 'D', 'C', 'A'].map((name) => `Importados/${name}.pdf`));
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem('atril-library-state')!));
+  expect(state.readingList).toEqual([]);
+  expect(state.priorityQueue).toEqual([]);
 });
 
 test('despliega las opciones de un PDF debajo del resultado sin superponer sus controles', async ({
@@ -1029,7 +1083,7 @@ test('despliega las opciones de un PDF debajo del resultado sin superponer sus c
   await page.screenshot({ path: `/tmp/atril-result-menu-${test.info().project.name}.png` });
   await next.click();
   await expect(page.locator('#reader-title')).toHaveText('A');
-  await expect(page.locator('#reader-queue-position')).toHaveText('1 / 2');
+  await expect(page.locator('#reader-queue-position')).toHaveText('2 / 3');
 });
 
 test('gestiona la cola desde el lector con arrastre, eliminación y nuevas partituras', async ({
@@ -1057,7 +1111,10 @@ test('gestiona la cola desde el lector con arrastre, eliminación y nuevas parti
   const handle = page.getByRole('button', { name: 'Reordenar E', exact: true });
   await handle.scrollIntoViewIfNeeded();
   const from = (await handle.boundingBox())!;
-  const target = (await page.locator('[data-queue-item="Importados/C.pdf"]').boundingBox())!;
+  const target = (await page
+    .getByRole('button', { name: 'Reordenar C', exact: true })
+    .locator('..')
+    .boundingBox())!;
   const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
   const end = { x: start.x, y: target.y + target.height / 2 };
   if (test.info().project.name === 'mobile') {
@@ -1086,16 +1143,23 @@ test('gestiona la cola desde el lector con arrastre, eliminación y nuevas parti
   await page.locator('#next-score').click();
   await expect(page.locator('#reader-title')).toHaveText('C');
   await page.locator('#reader-queue-toggle').click();
-  await expect(page.locator('.queue-score strong')).toHaveText(['E']);
+  await expect(page.locator('.queue-normal .queue-score strong')).toHaveText(['E']);
+  await expect(page.getByRole('button', { name: 'Vaciar', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Agregar partituras', exact: true }).click();
+  await page.locator('#reader-search').fill('D');
+  await page.getByRole('button', { name: 'Añadir D al final de la cola', exact: true }).click();
+  await page.getByRole('button', { name: 'Cola', exact: true }).click();
+  await expect(page.locator('.queue-priority .queue-score strong')).toHaveText(['D']);
   await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
-  await expect(page.locator('.queue-item')).toHaveCount(0);
+  await expect(page.locator('.queue-priority .queue-item')).toHaveCount(0);
+  await expect(page.locator('.queue-normal .queue-score strong')).toHaveText(['E']);
   await expect(page.locator('.queue-now strong')).toHaveText('C');
-  await expect(page.locator('#next-score')).toBeDisabled();
+  await expect(page.locator('#next-score')).toBeEnabled();
   await page.getByRole('button', { name: 'Agregar partituras', exact: true }).click();
   await page.locator('#reader-search').fill('B');
   await page.getByRole('button', { name: 'Añadir B al final de la cola', exact: true }).click();
   await page.getByRole('button', { name: 'Cola', exact: true }).click();
-  await expect(page.locator('.queue-score strong')).toHaveText(['B']);
+  await expect(page.locator('.queue-score strong')).toHaveText(['B', 'E']);
   await expect(page.locator('#reader-title')).toHaveText('C');
   await page.locator('#close-search').click();
   await page.locator('#next-score').click();
@@ -1103,7 +1167,7 @@ test('gestiona la cola desde el lector con arrastre, eliminación y nuevas parti
   await page.locator('#close-reader').click();
   await expect(page.locator('#reader')).toBeHidden();
   await page.getByRole('button', { name: 'Ver cola', exact: true }).click();
-  await expect(page.locator('.score-info h2')).toHaveText(['A', 'C', 'B']);
+  await expect(page.locator('.score-info h2')).toHaveText(['A', 'C', 'E']);
 });
 
 test('ofrece acciones táctiles amplias y separadas en móvil y tablet', async ({ page }) => {

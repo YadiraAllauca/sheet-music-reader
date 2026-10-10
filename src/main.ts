@@ -83,7 +83,7 @@ const icons = {
   WifiOff,
   X,
 };
-import { attachQueueDrag, reorderUpcoming } from './reader-queue';
+import { attachQueueDrag, ReaderSequence } from './reader-queue';
 import { registerSW } from 'virtual:pwa-register';
 import {
   folderList,
@@ -94,12 +94,7 @@ import {
   title,
   type Score,
 } from './library';
-import {
-  loadLibraryState,
-  saveLibraryState,
-  moveReadingList,
-  queueReadingScore,
-} from './library-state';
+import { loadLibraryState, saveLibraryState, moveReadingList } from './library-state';
 import {
   applyFolderSnapshot,
   forgetFolder,
@@ -146,6 +141,8 @@ let order = savedLibrary.order;
 let layout = localStorage.getItem('atril-layout') || 'grid';
 let current: Score | undefined;
 let readerQueue: string[] = [];
+let priorityQueue = savedLibrary.priorityQueue || [];
+const readerSequence = new ReaderSequence();
 let page = 1;
 let zoom = 1;
 let opening = 0;
@@ -241,7 +238,14 @@ function toast(message: string) {
 }
 
 function rememberLibrary() {
-  saveLibraryState({ folder, section, order, expandedFolders: [...expandedFolders], readingList });
+  saveLibraryState({
+    folder,
+    section,
+    order,
+    expandedFolders: [...expandedFolders],
+    readingList,
+    priorityQueue,
+  });
 }
 function availableReadingList() {
   return readingList.filter((id) => scores.some((score) => score.id === id));
@@ -537,8 +541,8 @@ document.addEventListener('click', (event) => {
     const id = target.dataset.queueScore;
     if (!scores.some((score) => score.id === id)) return;
     const position = target.dataset.queuePosition === 'next' ? 'next' : 'last';
-    readingList = queueReadingScore(availableReadingList(), current.id, id, position);
-    saveReaderQueue(readingList);
+    readerSequence.enqueue(id, position);
+    saveReaderQueue();
     toast(
       position === 'next' ? 'Partitura preparada como siguiente.' : 'Partitura añadida a la cola.',
     );
@@ -553,12 +557,16 @@ document.addEventListener('click', (event) => {
     refresh();
   }
   if (target.dataset.queueRemove && current) {
-    const id = target.dataset.queueRemove;
-    if (readerQueue.indexOf(id) > readerQueue.indexOf(current.id))
-      saveReaderQueue(readerQueue.filter((item) => item !== id));
+    const entry = readerSequence.entries.find((item) => item.key === target.dataset.queueRemove);
+    if (entry) {
+      readerSequence.remove(entry.key);
+      saveReaderQueue(!entry.queued);
+    }
   }
-  if (target.id === 'clear-upcoming' && current)
-    saveReaderQueue(readerQueue.slice(0, readerQueue.indexOf(current.id) + 1));
+  if (target.id === 'clear-upcoming' && current) {
+    readerSequence.clearPriority();
+    saveReaderQueue();
+  }
   if (target.dataset.addToQueue) {
     $<HTMLInputElement>('#reader-search').value = '';
     setReaderMode('library');
@@ -595,7 +603,7 @@ document.addEventListener('click', (event) => {
       })
       .catch(() => toast('No se pudo desvincular la carpeta.'));
   }
-  if (target.dataset.open) void openScore(target.dataset.open);
+  if (target.dataset.open) void openScore(target.dataset.open, undefined, target.dataset.queueOpen);
   if (target.dataset.favorite) {
     const score = scores.find((s) => s.id === target.dataset.favorite)!;
     const updated = { ...score, favorite: !score.favorite };
@@ -693,18 +701,28 @@ for (const view of ['grid', 'list'])
     refresh();
   };
 
-async function openScore(id: string, queue?: string[]) {
+async function openScore(id: string, queue?: string[], entryKey?: string) {
   const score = scores.find((s) => s.id === id);
   if (!score) return;
-  if (queue) readerQueue = [...queue];
-  else if ($('#reader').hidden || !readerQueue.includes(id)) {
-    readerQueue = readingList.includes(id)
-      ? availableReadingList()
-      : visibleScores().map((item) => item.id);
-    // A search inside the reader can open a PDF outside the library filters.
-    if (!readerQueue.includes(id)) readerQueue = [id];
+  if (queue || $('#reader').hidden || !readerQueue.includes(id)) {
+    const normal =
+      queue ||
+      (readingList.includes(id) ? availableReadingList() : visibleScores().map((item) => item.id));
+    readerSequence.start(
+      normal.includes(id) ? normal : [id],
+      id,
+      priorityQueue.filter((item) => scores.some((score) => score.id === item)),
+    );
+  } else {
+    readerSequence.select(
+      id,
+      entryKey || (readerSequence.current?.id === id ? readerSequence.current.key : undefined),
+    );
   }
-  updateReaderQueueControls(id);
+  readerQueue = readerSequence.entries.map((entry) => entry.id);
+  priorityQueue = readerSequence.pending;
+  rememberLibrary();
+  updateReaderQueueControls();
   $('#canvas-scroll').scrollTop = 0;
   const request = ++opening;
   textSearch++;
@@ -743,8 +761,8 @@ async function openScore(id: string, queue?: string[]) {
   }
 }
 
-function updateReaderQueueControls(id = current?.id) {
-  const index = id ? readerQueue.indexOf(id) : -1;
+function updateReaderQueueControls() {
+  const index = readerSequence.position;
   $('#reader-queue-position').hidden = readerQueue.length < 2;
   $('#reader-queue-position').textContent = `${index + 1} / ${readerQueue.length}`;
   $<HTMLButtonElement>('#previous-score').disabled = index <= 0;
@@ -753,36 +771,52 @@ function updateReaderQueueControls(id = current?.id) {
 
 function goToScore(direction: number) {
   if (!current) return;
-  const id = readerQueue[readerQueue.indexOf(current.id) + direction];
-  if (id) void openScore(id);
+  const entry = readerSequence.entries[readerSequence.position + direction];
+  if (entry) void openScore(entry.id, undefined, entry.key);
 }
 
-function saveReaderQueue(ids: string[]) {
-  readerQueue = [...new Set(ids)].filter((id) => scores.some((score) => score.id === id));
-  readingList = [...readerQueue];
+function saveReaderQueue(persistNormal = false) {
+  const currentKey = readerSequence.current?.key;
+  readerSequence.entries = readerSequence.entries.filter((entry) =>
+    scores.some((score) => score.id === entry.id),
+  );
+  readerSequence.position = Math.max(
+    0,
+    readerSequence.entries.findIndex((entry) => entry.key === currentKey),
+  );
+  readerQueue = readerSequence.entries.map((entry) => entry.id);
+  priorityQueue = readerSequence.pending;
+  if (persistNormal)
+    readingList = readerSequence.entries.filter((entry) => !entry.queued).map((entry) => entry.id);
   rememberLibrary();
   refresh();
   updateReaderQueueControls();
   void runReaderSearch();
 }
 
-attachQueueDrag($('#reader-results'), (id, target) => {
-  if (current) saveReaderQueue(reorderUpcoming(readerQueue, current.id, id, target));
+attachQueueDrag($('#reader-results'), (key, target) => {
+  if (!current) return;
+  const entry = readerSequence.entries.find((item) => item.key === key);
+  readerSequence.reorder(key, target);
+  saveReaderQueue(entry ? !entry.queued : false);
 });
 
 function renderReaderQueue() {
-  const index = current ? readerQueue.indexOf(current.id) : -1;
-  const upcoming = readerQueue
-    .slice(index + 1)
-    .filter((id) => scores.some((score) => score.id === id));
-  const rows = upcoming
-    .map((id, position) => {
-      const score = scores.find((item) => item.id === id)!;
-      return `<div class="queue-item" data-queue-item="${escape(id)}"><button class="icon-button queue-drag" data-queue-drag="${escape(id)}" aria-label="Reordenar ${escape(title(score.name))}" title="Arrastra o usa las flechas arriba y abajo">${icon('grip-vertical')}</button><button class="queue-score" data-open="${escape(id)}" aria-label="Abrir ${escape(title(score.name))} desde la cola"><span class="queue-number">${position + 1}</span><span><strong>${escape(title(score.name))}</strong><small>${escape(score.folder)}</small></span></button><button class="icon-button" data-queue-remove="${escape(id)}" aria-label="Quitar ${escape(title(score.name))} de la cola" title="Quitar de la cola">${icon('x')}</button></div>`;
-    })
-    .join('');
+  const upcoming = readerSequence.entries
+    .slice(readerSequence.position + 1)
+    .filter((entry) => scores.some((score) => score.id === entry.id));
+  const rows = (queued: boolean) =>
+    upcoming
+      .filter((entry) => entry.queued === queued)
+      .map((entry, position) => {
+        const score = scores.find((item) => item.id === entry.id)!;
+        return `<div class="queue-item" data-queue-item="${entry.key}"><button class="icon-button queue-drag" data-queue-drag="${entry.key}" aria-label="Reordenar ${escape(title(score.name))}" title="Arrastra o usa las flechas arriba y abajo">${icon('grip-vertical')}</button><button class="queue-score" data-open="${escape(entry.id)}" data-queue-open="${entry.key}" aria-label="Abrir ${escape(title(score.name))} desde la cola"><span class="queue-number">${position + 1}</span><span><strong>${escape(title(score.name))}</strong><small>${escape(score.folder)}</small></span></button><button class="icon-button" data-queue-remove="${entry.key}" aria-label="Quitar ${escape(title(score.name))} de la cola" title="Quitar de la cola">${icon('x')}</button></div>`;
+      })
+      .join('');
+  const manual = rows(true);
+  const normal = rows(false);
   $('#reader-results').innerHTML =
-    `${current ? `<h3 class="queue-section-title">Ahora</h3><div class="queue-now">${icon('file-music')}<div><strong>${escape(title(current.name))}</strong><small>${escape(current.folder)}</small></div><span>Leyendo</span></div>` : ''}<div class="queue-heading"><h3 class="queue-section-title">A continuación <span>${upcoming.length}</span></h3><button class="text-button" id="clear-upcoming" ${upcoming.length ? '' : 'disabled'}>Vaciar</button></div><div class="queue-items">${rows || '<p class="search-message">No hay más partituras en la cola. Añade la que quieras tocar después.</p>'}</div><button class="button primary wide" data-add-to-queue="true">${icon('plus')} Agregar partituras</button>`;
+    `${current ? `<h3 class="queue-section-title">Ahora</h3><div class="queue-now">${icon('file-music')}<div><strong>${escape(title(current.name))}</strong><small>${escape(current.folder)}</small></div><span>Leyendo</span></div>` : ''}<div class="queue-heading"><h3 class="queue-section-title">Añadidas a la cola <span>${priorityQueue.length}</span></h3><button class="text-button" id="clear-upcoming" ${priorityQueue.length ? '' : 'disabled'}>Vaciar</button></div><div class="queue-items queue-priority">${manual || '<p class="search-message">Añade una partitura para leerla antes de continuar con la secuencia original.</p>'}</div><button class="button primary wide" data-add-to-queue="true">${icon('plus')} Agregar partituras</button><h3 class="queue-section-title">Secuencia original</h3><div class="queue-items queue-normal">${normal || '<p class="search-message">Has llegado al final de esta secuencia.</p>'}</div>`;
   drawIcons();
 }
 $('#previous-score').onclick = () => goToScore(-1);
@@ -953,8 +987,8 @@ async function runReaderSearch() {
       ? found
           .map((s) => {
             const isCurrent = current?.id === s.id;
-            const inList = readingList.includes(s.id);
-            const isNext = !!current && readerQueue[readerQueue.indexOf(current.id) + 1] === s.id;
+            const inList = priorityQueue.includes(s.id);
+            const isNext = !!current && readerQueue[readerSequence.position + 1] === s.id;
             const status = isCurrent ? 'Leyendo' : isNext ? 'Siguiente' : inList ? 'En cola' : '';
             return `<div class="reader-result"><div class="reader-result-row"><button class="quick-result ${isCurrent ? 'current' : ''}" data-open="${escape(s.id)}">${icon('file-music')}<span><strong>${escape(title(s.name))}</strong><small>${escape(s.folder)}${status ? ` · ${status}` : ''}</small></span>${isCurrent ? icon('check') : ''}</button>${isCurrent ? '' : `<button class="icon-button queue-add ${inList ? 'is-queued' : ''}" data-queue-score="${escape(s.id)}" data-queue-position="last" aria-label="Añadir ${escape(title(s.name))} al final de la cola" title="${inList ? 'Ya está en la cola' : 'Añadir a la cola'}" ${inList ? 'disabled' : ''}>${icon(inList ? 'check' : 'plus')}</button><details class="reader-result-menu"><summary class="icon-button" aria-label="Opciones de ${escape(title(s.name))}">${icon('more-horizontal')}</summary><div><button class="button secondary" data-queue-score="${escape(s.id)}" data-queue-position="next" aria-label="Poner ${escape(title(s.name))} como siguiente" ${isNext && inList ? 'disabled' : ''}>${icon('chevron-right')} Poner siguiente</button></div></details>`}</div></div>`;
           })
