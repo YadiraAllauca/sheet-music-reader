@@ -184,7 +184,23 @@ svg {
   flex: 1;
 }
 .folder-item {
-  padding-left: calc(13px + var(--depth) * 12px);
+  padding-left: 5px;
+}
+.folder-node > .folder-row {
+  padding-left: calc(var(--depth) * 10px);
+}
+.folder-toggle,
+.folder-toggle-spacer {
+  width: 25px;
+  height: 40px;
+  flex-shrink: 0;
+}
+.folder-toggle svg {
+  width: 15px;
+  height: 15px;
+}
+.folder-toggle:focus-visible {
+  outline: 2px solid var(--accent);
 }
 .no-folders {
   padding: 3px 14px;
@@ -645,6 +661,80 @@ select {
   box-shadow: 0 5px 17px #4d3b3010;
   transform: translateY(-2px);
 }
+.score-card.in-reading-list {
+  border-color: var(--accent);
+}
+.score-select {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--accent-ink);
+  cursor: pointer;
+  min-height: 28px;
+}
+.score-select input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.score-order {
+  display: flex;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 0 12px 44px;
+}
+.grid .score-card:has(.score-order) .score-info {
+  padding-bottom: 16px;
+}
+.score-order .icon-button {
+  width: 32px;
+  height: 30px;
+  background: #f2e7de;
+}
+.score-order svg {
+  width: 17px;
+  height: 17px;
+}
+.reading-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 14px;
+  border: 1px solid #e8c3ab;
+  border-radius: 9px;
+  background: #fff6ee;
+}
+.reading-list-toolbar strong {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.reading-list-toolbar span {
+  font-size: 11px;
+  color: #857367;
+}
+.reading-list-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.reading-list-actions .button {
+  padding: 9px 12px;
+}
+.reader-queue-position {
+  color: #8b776b;
+  font-size: 11px;
+  white-space: nowrap;
+}
 .score-open {
   padding: 0;
   text-align: left;
@@ -765,6 +855,19 @@ select {
 }
 .list .score-actions {
   bottom: 30px;
+}
+.list .score-select {
+  position: static;
+  padding: 0 12px 10px;
+}
+.list .score-order {
+  position: absolute;
+  right: 9px;
+  bottom: 4px;
+  padding: 0;
+}
+.list .score-order ~ .score-actions {
+  bottom: 45px;
 }
 .empty-search {
   text-align: center;

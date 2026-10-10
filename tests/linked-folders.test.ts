@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { expect, it, vi } from 'vitest';
 import {
   scanFolder,
+  cacheFolderSnapshot,
   unlinkFolder,
   getCachedDocument,
   getProgress,
@@ -104,6 +105,41 @@ it('no produce una instantánea parcial si falla una carpeta', async () => {
     handle: directory('Local', [file('Primero.pdf'), broken]),
   };
   await expect(scanFolder(folder)).rejects.toThrow('Permiso revocado');
+});
+it('ignora archivos y directorios ocultos antes de intentar leerlos', async () => {
+  const trash = directory('.Trash', []);
+  trash.values = vi.fn().mockImplementation(() => {
+    throw new Error('No leer papelera');
+  });
+  const trashed = file('.trashed-123-Sonata.pdf');
+  trashed.getFile = vi.fn().mockRejectedValue(new Error('No leer archivo oculto'));
+  const entries = await scanFolder({
+    id: 'filtered',
+    name: 'Música',
+    handle: directory('Música', [trashed, trash, file('Sonata.pdf')]),
+  });
+  expect(entries.map((entry) => entry.score.name)).toEqual(['Sonata.pdf']);
+  expect(trash.values).not.toHaveBeenCalled();
+  expect(trashed.getFile).not.toHaveBeenCalled();
+});
+
+it('oculta copias antiguas de papelera al restaurar sin necesitar acceso a la carpeta', async () => {
+  const original = new File(['%PDF-1.7'], '.trashed-123-Sonata.pdf');
+  const { describeFile } = await import('../src/library');
+  const score = {
+    ...describeFile(original, 'Local/.trashed-123-Sonata.pdf'),
+    id: 'linked:old-trash/Local/.trashed-123-Sonata.pdf',
+  };
+  await cacheFolderSnapshot(
+    'old-trash',
+    [score],
+    [{ id: score.id, bytes: await original.arrayBuffer() }],
+  );
+  const { restoreLibrary } = await import('../src/storage');
+  await restoreLibrary();
+  expect((await getScores()).some((item) => item.id === score.id)).toBe(false);
+  expect(await getFile(score.id)).toBeUndefined();
+  await unlinkFolder('old-trash');
 });
 
 it('conserva la instantánea anterior completa si falla la lectura de una copia nueva', async () => {

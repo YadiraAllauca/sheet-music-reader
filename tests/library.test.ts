@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeFile, folderList, inFolder, matches } from '../src/library';
+import { describeFile, folderList, inFolder, isScorePath, matches } from '../src/library';
 
 const file = (name: string) => new File(['%PDF-1.7'], name, { lastModified: 123 });
 describe('Búsqueda y organización de partituras', () => {
@@ -25,5 +25,20 @@ describe('Búsqueda y organización de partituras', () => {
     const b = describeFile(file('Sonata.pdf'), 'Piano/Sonata.pdf');
     expect(a.folder).toBe('Importados');
     expect(a.id).not.toBe(b.id);
+  });
+  it('excluye papelera, archivos ocultos y metadatos sin ocultar partituras normales', () => {
+    for (const path of [
+      'Música/.trashed-123-Sonata.pdf',
+      'Música/.pending-123-Sonata.pdf',
+      'Música/._Sonata.pdf',
+      'Música/.Trash/Sonata.pdf',
+      'Música/__MACOSX/Sonata.pdf',
+      'Música/$RECYCLE.BIN/Sonata.pdf',
+      'Música/~$Sonata.pdf',
+      'Música/nota.txt',
+    ])
+      expect(isScorePath(path)).toBe(false);
+    expect(isScorePath('Música/1. Sonata.PDF')).toBe(true);
+    expect(isScorePath('Música/Trasher.pdf')).toBe(true);
   });
 });

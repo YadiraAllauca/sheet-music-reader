@@ -1,5 +1,5 @@
 import { openDB, type DBSchema } from 'idb';
-import { describeFile, type Score } from './library';
+import { describeFile, isIgnoredEntry, isScorePath, type Score } from './library';
 
 export interface LocalFileHandle {
   kind: 'file';
@@ -115,9 +115,10 @@ export async function scanFolder(folder: LinkedFolder): Promise<LinkedEntry[]> {
   const entries: LinkedEntry[] = [];
   async function walk(directory: LocalDirectoryHandle, prefix: string) {
     for await (const handle of directory.values()) {
+      if (isIgnoredEntry(handle.name)) continue;
       const path = `${prefix}/${handle.name}`;
       if (handle.kind === 'directory') await walk(handle, path);
-      else if (/\.pdf$/i.test(handle.name)) {
+      else if (isScorePath(path)) {
         const file = await handle.getFile();
         const score = describeFile(file, path);
         score.id = `linked:${folder.id}/${path}`;

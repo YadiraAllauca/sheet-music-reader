@@ -23,6 +23,20 @@ export const formatBytes = (bytes: number) =>
 export const matches = (score: Score, query: string) =>
   normalize(`${score.name} ${score.path}`).includes(normalize(query.trim()));
 
+// Android trash/pending files and macOS resource forks are hidden dot files.
+// Skip their directories too, before opening any file handles.
+export function isScorePath(path: string) {
+  const parts = path.replace(/\\/g, '/').split('/');
+  return /\.pdf$/i.test(parts.at(-1) || '') && parts.every((part) => !isIgnoredEntry(part));
+}
+export function isIgnoredEntry(name: string) {
+  return (
+    name.startsWith('.') ||
+    name.startsWith('~$') ||
+    ['__macosx', '$recycle.bin'].includes(name.toLowerCase())
+  );
+}
+
 export function describeFile(file: File, relativePath?: string): Score {
   const path = relativePath || file.webkitRelativePath || `Importados/${file.name}`;
   return {

@@ -13,6 +13,9 @@ Built with **TypeScript · Vite · PDF.js · IndexedDB · Progressive Web App AP
 - **Local library:** open individual PDFs or link multiple folders, including subfolders, on supported browsers.
 - **Persistent imports:** keep linked-folder PDFs in IndexedDB and reopen them without renewed folder permission, including offline.
 - **Manual refresh:** request folder access only when importing or refreshing; reconcile added, changed, or removed PDFs while preserving the last import if an update fails.
+- **Ordered reading list:** select PDFs across folders, rearrange them, and move through that sequence in the reader. Linked-file selections persist between visits.
+- **Folder navigation:** expand or collapse individual branches; restore the last folder or section and its expansion state on startup.
+- **Clean imports:** exclude hidden, trash, temporary, and filesystem metadata entries.
 - **Fast discovery:** search filenames and paths without case or accent sensitivity; use favorites, recent files, and grid or list views.
 - **Real previews:** first-page thumbnails load near the viewport, one PDF at a time, with a bounded in-memory cache.
 - **Focused reading:** zoom, page navigation, text search, previous/next PDFs with touch swipes, a dark reader background, and collapsible controls.
@@ -61,13 +64,13 @@ The browser tests run against the production build. See the [development guide](
 
 PDF contents remain on your device. Atril requests read-only folder access and does not upload, edit, or delete the original files.
 
-| Data                                                       | Storage              | Lifetime                                               |
-| ---------------------------------------------------------- | -------------------- | ------------------------------------------------------ |
-| Linked folder handles, imported PDFs, and reading metadata | IndexedDB            | Across sessions, until removed or site data is cleared |
-| Individually selected files                                | Memory               | Current session                                        |
-| Thumbnail cache                                            | Memory               | Current session; up to 48 cached previews              |
-| Library layout and desktop sidebar preference              | localStorage         | Across sessions                                        |
-| Application shell and PDF.js assets                        | Service worker cache | Available offline after caching                        |
+| Data                                                                             | Storage              | Lifetime                                               |
+| -------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------ |
+| Linked folder handles, imported PDFs, and reading metadata                       | IndexedDB            | Across sessions, until removed or site data is cleared |
+| Individually selected files                                                      | Memory               | Current session                                        |
+| Thumbnail cache                                                                  | Memory               | Current session; up to 48 cached previews              |
+| Library layout, location, expanded folders, reading list, and sidebar preference | localStorage         | Across sessions                                        |
+| Application shell and PDF.js assets                                              | Service worker cache | Available offline after caching                        |
 
 Linked-folder PDF copies, favorites, and reading progress persist. Opening Atril restores the last import without accessing the original folders. **Actualizar carpetas** requests read access if necessary and updates the saved copies. Individually selected PDFs must be selected again after a reload. Imported PDFs use device storage; browser eviction or clearing site data can remove them. [Storage details and limitations →](docs/architecture.md)
 

@@ -23,6 +23,7 @@ src/
   library.ts             Score metadata, search normalization, and folder paths
   linked-folders.ts      Persistent imports, folder handles, and recursive scanning
   storage.ts             Session files, imported snapshots, and reading progress
+  library-state.ts       Validated location, folder expansion, and ordered reading list
   pdf.ts                 PDF.js loading, rendering, search, and cleanup
   split-reader.ts        Independent second reader and its controls
   file-swipe.ts          Touch file gestures that preserve native scrolling
@@ -63,22 +64,32 @@ flowchart LR
 
 `linked-folders.ts` stores directory handles in the `folders` object store of `atril-linked-folders`. The application requests read-only access and checks permission before scanning.
 
-A scan walks subdirectories and collects PDF metadata and `File` snapshots. The storage layer reads bytes only for new or changed files, then commits the folder's metadata, PDF copies, and deletions in one IndexedDB transaction. Memory is reconciled only after the commit. Read errors, canceled permissions, and quota failures preserve the previous imported snapshot. Each folder commits independently; a failure in one does not discard successful updates to another.
+A scan excludes hidden/trash entries and known filesystem metadata directories before reading their handles, and collects PDF metadata and `File` snapshots. The storage layer reads bytes only for new or changed files, then commits the folder's metadata, PDF copies, and deletions in one IndexedDB transaction. Memory is reconciled only after the commit. Read errors, canceled permissions, and quota failures preserve the previous imported snapshot. Each folder commits independently; a failure in one does not discard successful updates to another.
 
 Linked score IDs include a generated folder ID and relative path. This keeps document identity separate when distinct linked roots share a name. Sidebar navigation groups paths by their displayed folder names, so same-named roots are not visually separated in the current interface.
 
 Startup restores metadata for cached documents without reading PDF bytes or consulting folder permissions. Scanning happens only after a user imports a folder, restores access, or presses the refresh button. Permission requests are initiated directly in the user gesture. The application does not poll or monitor the filesystem in the background, and scans do not overlap.
 
+## Library navigation and reading lists
+
+`library-state.ts` validates the saved location, sort preference, expanded folder paths, and unique ordered reading-list IDs in the `atril-library-state` localStorage entry. Invalid or older state falls back to defaults. The active location and branch expansion survive startup; unavailable saved folders fall back to the full library. Search text is not persisted.
+
+The sidebar renders nested branches. Disclosure buttons toggle only the corresponding branch, without rebuilding PDF cards or requesting filesystem access. Library cards and previews are limited to the active folder/section and search results.
+
+Checkboxes append PDFs in selection order. The reading-list section ignores the library sort and offers explicit up/down reordering. Starting the list supplies its complete available queue to the primary reader, independent of folder/search filters. Opening a selected PDF directly uses the same order. Reader search can open other files, and the secondary pane retains its independent alphabetical queue. Unavailable IDs are removed after startup restoration, successful refreshes, or explicit library removals.
+
+The shared path filter also excludes previously cached hidden entries from startup metadata and library queries. Refreshing a folder cleans their persisted copies through normal snapshot reconciliation.
+
 ## Storage boundaries
 
-| Location              | Contents                                                                                                  |
-| --------------------- | --------------------------------------------------------------------------------------------------------- |
-| Memory                | Library entries, individual `File` objects, active PDF documents, current-session hidden scores, previews |
-| IndexedDB `folders`   | Linked directory handles, generated IDs, and names                                                        |
-| IndexedDB `progress`  | Metadata for all imported PDFs, including favorites and reading progress                                  |
-| IndexedDB `documents` | Imported PDF bytes as ArrayBuffers, keyed by linked score ID                                              |
-| localStorage          | Grid/list preference and desktop sidebar visibility                                                       |
-| Service worker cache  | Built app resources and local PDF.js dependencies                                                         |
+| Location              | Contents                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Memory                | Library entries, individual `File` objects, active PDF documents, current-session hidden scores, previews     |
+| IndexedDB `folders`   | Linked directory handles, generated IDs, and names                                                            |
+| IndexedDB `progress`  | Metadata for all imported PDFs, including favorites and reading progress                                      |
+| IndexedDB `documents` | Imported PDF bytes as ArrayBuffers, keyed by linked score ID                                                  |
+| localStorage          | Grid/list preference, desktop sidebar visibility, last location, sort, expanded folders, and reading-list IDs |
+| Service worker cache  | Built app resources and local PDF.js dependencies                                                             |
 
 Linked-folder PDF bytes are persisted locally; thumbnails are not. Readers and previews fetch copies from IndexedDB on demand, avoiding loading all PDF bytes at startup. Unlinking removes the folder record, its PDF copies, and saved progress. Clearing browser site data also removes preferences, permissions/handles, and offline resources.
 
@@ -94,7 +105,7 @@ Legacy versions may have stored PDF copies in a separate `atril-library` databas
 
 Each pane owns a `PdfReader` instance with its own loaded document, render task, page, zoom, and scroll container. Loading another score or closing a pane cancels rendering and destroys the previous document. Request counters prevent obsolete asynchronous results from replacing a newer selection.
 
-The primary reader captures its previous/next-file queue from the visible library selection. The secondary reader selects documents independently and captures an alphabetical file queue for touch navigation. A shared gesture handler distinguishes deliberate single-finger horizontal swipes from vertical scrolling, small drags, and multi-touch. When a PDF overflows its pane horizontally, native panning takes priority over file switching. Both use the same local file access layer and save linked-file progress. If the same score is open twice, its saved progress is the most recently recorded page; there are no separate persistent bookmarks per pane.
+The primary reader captures its previous/next-file queue from the ordered reading list when opening a selected score or starting the list; otherwise it uses the visible library selection. The secondary reader selects documents independently and captures an alphabetical file queue for touch navigation. A shared gesture handler distinguishes deliberate single-finger horizontal swipes from vertical scrolling, small drags, and multi-touch. When a PDF overflows its pane horizontally, native panning takes priority over file switching. Both use the same local file access layer and save linked-file progress. If the same score is open twice, its saved progress is the most recently recorded page; there are no separate persistent bookmarks per pane.
 
 Embedded text is extracted on demand and cached per active document for search. Atril does not run OCR.
 

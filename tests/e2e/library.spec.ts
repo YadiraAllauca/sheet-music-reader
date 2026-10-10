@@ -629,3 +629,136 @@ test('admite gestos táctiles para cambiar PDF y conserva el scroll y las seccio
   await swipe('#canvas-scroll', distance);
   await expect(page.locator('#reader-title')).toHaveText('A');
 });
+
+test('selecciona una lista ordenada y navega únicamente por esos PDFs', async ({ page }) => {
+  await page.goto('/');
+  const buffer = await pdf(['Lista de ensayo']);
+  await page.locator('#file-input').setInputFiles([
+    { name: 'A.pdf', mimeType: 'application/pdf', buffer },
+    { name: 'B.pdf', mimeType: 'application/pdf', buffer },
+    { name: 'C.pdf', mimeType: 'application/pdf', buffer },
+    { name: '.trashed-123-B.pdf', mimeType: 'application/pdf', buffer },
+    { name: '._A.pdf', mimeType: 'application/pdf', buffer },
+  ]);
+  await expect(page.locator('.score-card')).toHaveCount(3);
+  await page.getByRole('checkbox', { name: 'Añadir C a la lista', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Añadir A a la lista', exact: true }).check();
+  await expect(page.locator('#reader')).toBeHidden();
+  await expect(page.locator('#reading-list-count')).toHaveText('2');
+  await page.locator('#library-search').fill('B');
+  await expect(page.locator('.score-card')).toHaveCount(1);
+  // Starting the selection ignores unrelated search results and alphabetical order.
+  await page.getByRole('button', { name: 'Leer lista', exact: true }).click();
+  await expect(page.locator('#reader-title')).toHaveText('C');
+  await expect(page.locator('#reader-queue-position')).toHaveText('1 / 2');
+  await expect(page.locator('#previous-score')).toBeDisabled();
+  await page.locator('#next-score').click();
+  await expect(page.locator('#reader-title')).toHaveText('A');
+  await expect(page.locator('#reader-queue-position')).toHaveText('2 / 2');
+  await expect(page.locator('#next-score')).toBeDisabled();
+  await page.locator('#close-reader').click();
+  await page.getByRole('button', { name: 'Ver y ordenar', exact: true }).click();
+  await expect(page.locator('.score-info h2')).toHaveText(['C', 'A']);
+  await expect(page.locator('#sort')).toBeDisabled();
+  await page.getByRole('button', { name: 'Subir A en la lista', exact: true }).click();
+  await expect(page.locator('.score-info h2')).toHaveText(['A', 'C']);
+  await page.locator('#list-view').click();
+  await expect(page.locator('.score-info h2')).toHaveText(['A', 'C']);
+  await page.getByRole('button', { name: 'Leer lista', exact: true }).click();
+  await expect(page.locator('#reader-title')).toHaveText('A');
+  await page.locator('#next-score').click();
+  await expect(page.locator('#reader-title')).toHaveText('C');
+  await page.locator('#close-reader').click();
+  // Removing a selected item also removes its checkbox from this view.
+  await page.getByRole('checkbox', { name: 'Añadir C a la lista', exact: true }).click();
+  await expect(page.locator('.score-info h2')).toHaveText(['A']);
+  await page.locator('#clear-reading-list').click();
+  await expect(page.getByText('Tu lista está vacía', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Elegir partituras', exact: true }).click();
+  await expect(page.locator('.score-card')).toHaveCount(3);
+});
+
+test('recuerda subcarpetas, ubicación y lista sin cargar todas las partituras al volver', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: async () =>
+        (await navigator.storage.getDirectory()).getDirectoryHandle('Música', { create: true }),
+    });
+  });
+  await page.goto('/');
+  const bytes = [...(await pdf(['Biblioteca guardada']))];
+  await page.evaluate(async (bytes) => {
+    const root = await (
+      await navigator.storage.getDirectory()
+    ).getDirectoryHandle('Música', { create: true });
+    for (const path of [
+      'Piano/Clásico/A.pdf',
+      'Piano/B.pdf',
+      'Violín/C.pdf',
+      '.trashed-123-A.pdf',
+      '__MACOSX/._B.pdf',
+      '.Trash/Eliminada.pdf',
+    ]) {
+      const parts = path.split('/');
+      const name = parts.pop()!;
+      let folder = root;
+      for (const part of parts) folder = await folder.getDirectoryHandle(part, { create: true });
+      const writer = await (await folder.getFileHandle(name, { create: true })).createWritable();
+      await writer.write(new Uint8Array(bytes));
+      await writer.close();
+    }
+  }, bytes);
+  await page.locator('.heading-actions [data-action="import"]').click();
+  await page.locator('#pick-folder').click();
+  await expect(page.locator('.score-card')).toHaveCount(3);
+  if (page.viewportSize()!.width <= 650) await page.locator('#menu').click();
+  await expect(page.locator('[data-folder="Música/Piano"]')).toBeHidden();
+  await page.getByRole('button', { name: 'Mostrar subcarpetas de Música', exact: true }).click();
+  await expect(page.locator('[data-folder="Música/Piano"]')).toBeVisible();
+  await expect(page.locator('[data-folder="Música/Piano/Clásico"]')).toBeHidden();
+  await page
+    .getByRole('button', { name: 'Mostrar subcarpetas de Música/Piano', exact: true })
+    .click();
+  await page.locator('[data-folder="Música/Piano/Clásico"]').click();
+  await expect(page.locator('.score-info h2')).toHaveText(['A']);
+  await page.getByRole('checkbox', { name: 'Añadir A a la lista', exact: true }).check();
+  await page.reload();
+  await expect(page.locator('#heading')).toHaveText('Clásico');
+  await expect(page.locator('#breadcrumb')).toHaveText('Música/Piano/Clásico');
+  await expect(page.locator('.score-card')).toHaveCount(1);
+  await expect(page.locator('[data-preview]')).toHaveCount(1);
+  await expect(
+    page.getByRole('checkbox', { name: 'Añadir A a la lista', exact: true }),
+  ).toBeChecked();
+  if (page.viewportSize()!.width <= 650) await page.locator('#menu').click();
+  await expect(
+    page.getByRole('button', { name: 'Ocultar subcarpetas de Música', exact: true }),
+  ).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('[data-folder="Música/Piano/Clásico"]')).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Ocultar subcarpetas de Música/Piano', exact: true })
+    .click();
+  await expect(page.locator('[data-folder="Música/Piano/Clásico"]')).toBeHidden();
+  await page.locator('[data-folder="Música/Violín"]').click();
+  await page.getByRole('checkbox', { name: 'Añadir C a la lista', exact: true }).check();
+  await page.getByRole('button', { name: 'Ver y ordenar', exact: true }).click();
+  await expect(page.locator('.score-info h2')).toHaveText(['A', 'C']);
+  await page.getByRole('button', { name: 'Subir C en la lista', exact: true }).click();
+  await page.reload();
+  await expect(page.locator('#heading')).toHaveText('Tu lista de lectura');
+  await expect(page.locator('.score-info h2')).toHaveText(['C', 'A']);
+  await page.getByRole('button', { name: 'Leer lista', exact: true }).click();
+  await expect(page.locator('#reader-title')).toHaveText('C');
+  await page.locator('#next-score').click();
+  await expect(page.locator('#reader-title')).toHaveText('A');
+  await page.locator('#close-reader').click();
+  if (page.viewportSize()!.width <= 650) await page.locator('#menu').click();
+  await expect(page.locator('[data-folder="Música/Piano/Clásico"]')).toBeHidden();
+  await page.screenshot({
+    path: `/tmp/atril-library-tree-${test.info().project.name}.png`,
+    fullPage: true,
+  });
+});

@@ -1,4 +1,4 @@
-import { describeFile, type Score } from './library';
+import { describeFile, isScorePath, type Score } from './library';
 import {
   getProgress,
   getCachedDocument,
@@ -16,12 +16,12 @@ const hidden = new Set<string>();
 export async function restoreLibrary() {
   const available = new Set(await getCachedDocumentIds());
   for (const score of await getProgress()) {
-    if (available.has(score.id)) scores.set(score.id, score);
+    if (available.has(score.id) && isScorePath(score.path)) scores.set(score.id, score);
   }
 }
 export async function getScores() {
   return [...scores.values()]
-    .filter((score) => !hidden.has(score.id))
+    .filter((score) => !hidden.has(score.id) && isScorePath(score.path))
     .map((score) => ({ ...score }));
 }
 export async function getFile(id: string) {
