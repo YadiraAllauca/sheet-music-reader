@@ -88,18 +88,10 @@ svg {
   font-weight: 600;
 }
 .brand-mark {
-  width: 40px;
-  height: 46px;
-  border-radius: 13px;
-  background: var(--accent);
-  color: #fff6dc;
-  display: grid;
-  place-items: center;
-  transform: rotate(-5deg);
-}
-.brand-mark svg {
-  width: 25px;
-  height: 25px;
+  display: block;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
 }
 .brand-caption {
   display: block;

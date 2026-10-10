@@ -157,7 +157,7 @@ const thumbnails = createThumbnails(() => $('#reader').hidden === true);
 
 $('#app').innerHTML = `
   <aside class="sidebar" id="sidebar">
-    <a class="brand" href="/" aria-label="Atril, inicio"><span class="brand-mark">${icon('music-2')}</span><span>Atril<span class="brand-caption">TU BIBLIOTECA DE PARTITURAS</span></span></a>
+    <a class="brand" href="/" aria-label="Atril, inicio"><img class="brand-mark" src="/icon.svg" width="48" height="48" alt=""/><span>Atril<span class="brand-caption">TU BIBLIOTECA DE PARTITURAS</span></span></a>
     <div class="nav-label">TU BIBLIOTECA</div>
     <nav aria-label="Biblioteca">
       <button class="nav-item active" data-section="all">${icon('library')}<span>Todas las partituras</span><span class="count" id="all-count">0</span></button>

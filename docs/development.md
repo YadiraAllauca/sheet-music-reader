@@ -28,6 +28,7 @@ No environment variables or backend services are needed. The optional `PLAYWRIGH
 | `npm run format`           | Format the paths listed in the script with Prettier                    |
 | `npm run test:e2e`         | Run Playwright desktop and mobile flows                                |
 | `npm run docs:screenshots` | Capture the documentation images from a production build               |
+| `npm run icons`            | Export the app icon PNGs from the shared SVG source using Playwright   |
 
 Prettier uses two-space indentation, single quotes, trailing commas, and a 100-character line width. To check formatting without writing files:
 
@@ -76,6 +77,10 @@ PLAYWRIGHT_CHANNEL=chrome npm run docs:screenshots
 ```
 
 The script starts its own preview server on port 4175 and closes the browser and server afterward. The screenshots are part of the documentation and should be updated after meaningful visual changes.
+
+## App artwork
+
+`public/icon.svg` is the original Atril mark: an open score on a music stand, in orange and white, with black notation details. The sidebar and favicon use this vector directly. After editing it, run `npm run icons` with Playwright Chromium installed, or `PLAYWRIGHT_CHANNEL=chrome npm run icons` with local Chrome. This generates the 192/512 px app icons, an opaque 512 px Android maskable icon, and an opaque 180 px Apple touch icon. The maskable symbol fits within the central 80% safe circle; launcher masks supply their own outer shape. Commit the SVG and exported PNGs together, then build to update the manifest and offline cache.
 
 ## Generated and local files
 

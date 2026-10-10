@@ -12,7 +12,8 @@
     "postinstall": "node scripts/prepare-assets.mjs",
     "lint": "eslint src tests",
     "format": "prettier --write src tests *.ts *.json README.md",
-    "docs:screenshots": "node scripts/capture-docs.mjs"
+    "docs:screenshots": "node scripts/capture-docs.mjs",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",

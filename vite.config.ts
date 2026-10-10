@@ -5,12 +5,17 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png'],
+      includeAssets: [
+        'icon.svg',
+        'icon-192.png',
+        'icon-512.png',
+        'icon-maskable-512.png',
+        'apple-touch-icon.png',
+      ],
       manifest: {
         name: 'Atril · Tu biblioteca de partituras',
         short_name: 'Atril',
-        description:
-          'Lee tus partituras PDF directamente desde tu dispositivo, sin guardar copias.',
+        description: 'Tu biblioteca de partituras PDF, privada y disponible sin conexión.',
         lang: 'es',
         theme_color: '#e46125',
         background_color: '#f7f6f2',
@@ -18,7 +23,13 @@ export default defineConfig({
         start_url: '/',
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          {
+            src: '/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       workbox: {
