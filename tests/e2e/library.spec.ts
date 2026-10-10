@@ -991,6 +991,47 @@ test('prepara siguientes PDFs desde la búsqueda del lector sin interrumpir la p
   ).toEqual(['B', 'D', 'C', 'A'].map((name) => `Importados/${name}.pdf`));
 });
 
+test('despliega las opciones de un PDF debajo del resultado sin superponer sus controles', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto('/');
+  const name = '02- LAS MAÑANITAS Violin - Partitura para ensayo';
+  const buffer = await pdf(['Ensayo']);
+  await page.locator('#file-input').setInputFiles([
+    { name: 'A.pdf', mimeType: 'application/pdf', buffer },
+    { name: `${name}.pdf`, mimeType: 'application/pdf', buffer },
+  ]);
+  await page.getByRole('button', { name: 'Abrir A', exact: true }).click();
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await page.locator('#reader-search-toggle').click();
+  await page.locator('#reader-search').fill('MAÑANITAS');
+  const result = page.locator('.reader-result-row');
+  const title = result.locator('.quick-result');
+  const add = result.locator('.queue-add');
+  const options = page.getByLabel(`Opciones de ${name}`, { exact: true });
+  const before = (await title.boundingBox())!;
+  await options.click();
+  const after = (await title.boundingBox())!;
+  expect(after.x).toBe(before.x);
+  expect(after.width).toBe(before.width);
+  const addBounds = (await add.boundingBox())!;
+  const optionsBounds = (await options.boundingBox())!;
+  expect(optionsBounds.x).toBeGreaterThanOrEqual(addBounds.x + addBounds.width + 4);
+  expect(optionsBounds.y).toBe(addBounds.y);
+  const next = page.getByRole('button', { name: `Poner ${name} como siguiente`, exact: true });
+  const nextBounds = (await next.boundingBox())!;
+  const rowBounds = (await result.boundingBox())!;
+  expect(nextBounds.width).toBeCloseTo(rowBounds.width - 16, 0);
+  expect(nextBounds.y).toBeGreaterThanOrEqual(
+    Math.max(after.y + after.height, optionsBounds.y + optionsBounds.height),
+  );
+  await page.screenshot({ path: `/tmp/atril-result-menu-${test.info().project.name}.png` });
+  await next.click();
+  await expect(page.locator('#reader-title')).toHaveText('A');
+  await expect(page.locator('#reader-queue-position')).toHaveText('1 / 2');
+});
+
 test('gestiona la cola desde el lector con arrastre, eliminación y nuevas partituras', async ({
   page,
   context,
