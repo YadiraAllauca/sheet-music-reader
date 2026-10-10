@@ -120,6 +120,10 @@ try {
   await page.screenshot({ path: 'docs/images/library.png' });
   await page.getByRole('button', { name: 'Abrir Morning Study', exact: true }).click();
   await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await page.locator('#reader-queue-toggle').click();
+  await expect(page.locator('.queue-score')).toHaveCount(4);
+  await page.screenshot({ path: 'docs/images/queue.png' });
+  await page.locator('#close-search').click();
   await page.getByRole('button', { name: 'Dividir y buscar', exact: true }).click();
   await page.locator('#secondary-query').fill('Evening Waltz');
   await page.locator('[data-secondary-open]').click();

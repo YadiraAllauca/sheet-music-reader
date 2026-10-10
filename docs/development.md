@@ -62,7 +62,7 @@ The mobile project emulates a Pixel 7 in Chromium. Persistent folder selection, 
 
 ## Documentation screenshots
 
-The screenshot script generates original demonstration notation in memory, opens it through the actual file picker flow, and saves three images under `docs/images/`. It does not capture local music folders or store the generated PDF files.
+The screenshot script generates original demonstration notation in memory, opens it through the actual file picker flow, and saves four images, including the reading queue, under `docs/images/`. It does not capture local music folders or store the generated PDF files.
 
 ```sh
 npm run build

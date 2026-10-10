@@ -41,17 +41,18 @@ Use the chevron beside a folder to show or hide its subfolders. Clicking the fol
 
 First-page previews load as cards approach the viewport. A sheet-shaped placeholder appears while loading or if a PDF cannot be read. Removing a linked score from the library hides it for the current session; it returns after reloading if its copy is still imported. Refreshing removes its saved copy if it was deleted from the original folder.
 
-## Build an ordered reading list
+## Manage your reading queue
 
-1. Check **Lista** on each PDF card or row in the order you want to play. On touch screens, hold the PDF preview or title for about half a second to add or remove it; a short tap still opens the PDF. Moving your finger to scroll cancels the hold. You can select across folders or search results.
-2. Choose **Ver y ordenar** or **Lista de lectura** in the sidebar to review the selection. Use the up/down buttons to change its order.
-3. Choose **Leer lista** to open the first PDF. **PDF anterior / PDF siguiente** and touch swipes follow that list, with a position counter in the reader.
+Open **Ver cola** in the reader toolbar to see **Ahora** (the current score) and **A continuación** (the PDFs that follow). The panel has **Cola**, **Buscar PDFs**, and **En este PDF** tabs, so you can manage the sequence, add scores, and search document text in one place.
 
-Opening a selected PDF directly also uses the reading-list order. An unselected PDF uses the current library filters and sort order. The list view keeps its explicit order even when the normal library sort changes. Starting **Leer lista** uses the complete selection, even if a search currently hides some selected PDFs.
+- **Add:** choose **Agregar partituras**, search by name or folder, and press **+** beside a result. It appends the PDF once; a checkmark identifies a score already in the queue. The result's **⋯ → Poner siguiente** action places it directly after the current PDF.
+- **Reorder:** drag the grip beside an upcoming score. On a keyboard, focus the grip and use Up/Down. The current score and previously read entries remain in place.
+- **Remove:** press **×** beside an upcoming score. **Vaciar** clears all upcoming entries while keeping the current score and history. These actions leave the PDF files in your library and device.
+- **Navigate:** the reader's previous/next PDF buttons and touch swipes follow this sequence. Opening an upcoming score from the queue jumps directly to it; prior entries remain accessible with the previous button.
 
-You can also build the same list while reading: open **Buscar → Otra partitura**, then search by name or folder. **Poner siguiente** inserts that PDF immediately after the current one, moving it if already selected. **Añadir a la lista** appends it without duplicates. These actions keep the current PDF, page, zoom, and scroll position. If the current PDF is not in the list, it is included at the start; existing selected PDFs are retained. The reader's arrows and swipes then follow the updated list. Search results identify **Leyendo**, **Siguiente**, and **En la lista**. Return to **Ver y ordenar** in the library to review or rearrange the selection.
+Queue edits keep the open PDF, page, zoom, and scroll position. The same saved selection appears under **Cola de partituras** in the library. You can also select **Cola** on cards, hold a card for about half a second on touch screens, or use the library's **Ver cola / Abrir cola** actions to prepare a sequence before opening the reader. The library offers up/down buttons for reordering.
 
-Uncheck a PDF to remove it from the list, or use **Vaciar lista de lectura** to clear the selection. These actions do not remove PDFs from your library or device. Linked-folder selections persist between visits; individually selected files remain session-only, so their list entries disappear after a reload. A successful refresh removes list entries for deleted PDFs. Failed updates retain the existing imported PDFs and list.
+Opening an unselected PDF starts with the current folder/search order. Adding through reader search builds the explicit queue from the saved selection, including the current PDF at the start if absent. Once edited, the queue becomes the saved selection. Linked-folder selections survive reloads; individually selected PDFs remain session-only. Deleted or unavailable entries are pruned during restoration and successful refreshes. Search text is not persisted.
 
 ## Read a PDF
 
@@ -63,7 +64,8 @@ On a touch screen, swipe **left for the next PDF** or **right for the previous P
 
 Choose **Buscar**:
 
-- **Otra partitura:** find and open another score by filename or path.
+- **Cola:** review and manage the current and upcoming scores.
+- **Buscar PDFs:** find and open another score by filename or path, or add it to the queue.
 - **En este PDF:** search embedded text and jump to a matching page. Image-only scans need OCR, which Atril does not include.
 
 Favorites and the most recent reading page persist for linked files. Files selected individually keep this information only during the session.

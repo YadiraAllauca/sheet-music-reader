@@ -19,6 +19,7 @@ import {
   FolderPlus,
   Folders,
   HardDrive,
+  GripVertical,
   LayoutGrid,
   Library,
   List,
@@ -60,6 +61,7 @@ const icons = {
   FolderPlus,
   Folders,
   HardDrive,
+  GripVertical,
   LayoutGrid,
   Library,
   List,
@@ -81,6 +83,7 @@ const icons = {
   WifiOff,
   X,
 };
+import { attachQueueDrag, reorderUpcoming } from './reader-queue';
 import { registerSW } from 'virtual:pwa-register';
 import {
   folderList,
@@ -163,7 +166,7 @@ $('#app').innerHTML = `
       <button class="nav-item active" data-section="all">${icon('library')}<span>Todas las partituras</span><span class="count" id="all-count">0</span></button>
       <button class="nav-item" data-section="recent">${icon('clock-3')}<span>Recientes</span></button>
       <button class="nav-item" data-section="favorites">${icon('star')}<span>Favoritas</span><span class="count" id="favorite-count">0</span></button>
-      <button class="nav-item" data-section="reading-list">${icon('list')}<span>Lista de lectura</span><span class="count" id="reading-list-count">0</span></button>
+      <button class="nav-item" data-section="reading-list">${icon('list')}<span>Cola de partituras</span><span class="count" id="reading-list-count">0</span></button>
     </nav>
     <div class="nav-label folder-heading">CARPETAS<button class="icon-button" data-action="import" aria-label="Vincular carpeta">${icon('folder-plus')}</button></div>
     <nav id="folders" aria-label="Carpetas"></nav>
@@ -175,20 +178,20 @@ $('#app').innerHTML = `
       <div class="heading-row"><div><div class="eyebrow">UN ESPACIO PARA TU MÚSICA</div><h1 id="heading">Tu biblioteca</h1><p id="subtitle">Menos tiempo buscando. Más tiempo tocando.</p></div><div class="heading-actions"><button class="button primary" data-action="open-file">${icon('folder-open')} Abrir PDF</button><button class="button secondary" data-action="import">${icon('folder')} Vincular carpeta</button><button class="button secondary" id="refresh-folders">${icon('refresh-cw')} <span>Actualizar carpetas</span></button></div></div>
       <div class="stats"><div>${icon('files')}<span><strong id="stat-scores">0</strong> partituras</span></div><div>${icon('folders')}<span><strong id="stat-folders">0</strong> carpetas</span></div><div>${icon('hard-drive')}<span><strong id="stat-size">0 KB</strong> seleccionados</span></div><span class="offline-note">${icon('wifi-off')} Disponibles sin conexión</span></div>
       <div class="library-toolbar"><label class="search-field">${icon('search')}<input id="library-search" type="search" placeholder="Buscar por nombre o carpeta…" aria-label="Buscar partituras" autocomplete="off"/><kbd>/</kbd></label><select id="sort" aria-label="Ordenar partituras"><option value="name">Nombre: A → Z</option><option value="added">Últimas seleccionadas</option><option value="opened">Últimas abiertas</option></select><div class="view-switch"><button class="icon-button" id="grid-view" aria-label="Vista de tarjetas">${icon('layout-grid')}</button><button class="icon-button" id="list-view" aria-label="Vista de lista">${icon('list')}</button></div></div>
-      <div class="reading-list-toolbar" id="reading-list-toolbar" hidden><div><strong id="reading-list-summary"></strong><span>Marca PDFs en el orden en que quieres tocarlos.</span></div><div class="reading-list-actions"><button class="button primary" id="start-reading-list">${icon('book-open')} Leer lista</button><button class="button secondary" data-section="reading-list">${icon('list')} Ver y ordenar</button><button class="icon-button" id="clear-reading-list" aria-label="Vaciar lista de lectura" title="Vaciar lista de lectura">${icon('x')}</button></div></div>
-      <div class="results-label" id="results-label"></div><p class="touch-selection-hint" id="touch-selection-hint" hidden>Mantén pulsada una partitura para añadirla o quitarla de la lista.</p><div id="score-list"></div>
+      <div class="reading-list-toolbar" id="reading-list-toolbar" hidden><div><strong id="reading-list-summary"></strong><span>Añade partituras y sigue tu orden de ensayo.</span></div><div class="reading-list-actions"><button class="button primary" id="start-reading-list">${icon('book-open')} Abrir cola</button><button class="button secondary" data-section="reading-list">${icon('list')} Ver cola</button><button class="icon-button" id="clear-reading-list" aria-label="Vaciar cola" title="Vaciar cola">${icon('x')}</button></div></div>
+      <div class="results-label" id="results-label"></div><p class="touch-selection-hint" id="touch-selection-hint" hidden>Mantén pulsada una partitura para añadirla o quitarla de la cola.</p><div id="score-list"></div>
       <footer class="library-footer"><span>${icon('lock-keyhole')} Sin cuentas. Sin nube. A tu ritmo.</span><button class="text-button" id="help">Cómo funciona ${icon('arrow-up-right')}</button></footer>
     </section>
   </main>
   <dialog id="import-dialog" class="dialog"><form method="dialog"><button class="icon-button dialog-close" aria-label="Cerrar">${icon('x')}</button></form><span class="dialog-icon">${icon('folder-plus')}</span><h2>Abre desde tu dispositivo</h2><p>Importa una o varias carpetas de tu dispositivo. Guardaremos sus PDFs en esta app para leerlos sin volver a dar acceso. Pulsa Actualizar carpetas para sincronizar los cambios; el navegador puede pedir permiso en ese momento.</p><button class="button primary wide" id="pick-folder">${icon('folder-open')} Vincular otra carpeta</button><button class="button secondary wide" id="pick-files">${icon('files')} Seleccionar archivos PDF</button><small>Las copias ocupan espacio en este dispositivo y no se suben a internet. Si el navegador no admite carpetas vinculadas, podrás elegir PDFs para esta sesión.</small></dialog>
-  <dialog id="help-dialog" class="dialog"><form method="dialog"><button class="icon-button dialog-close" aria-label="Cerrar">${icon('x')}</button></form><span class="dialog-icon">${icon('music-2')}</span><h2>Listo para tocar</h2><ol><li>Vincula tus carpetas o abre un PDF desde tu dispositivo.</li><li>Busca por cualquier parte del nombre o de la ruta, con o sin tildes. Despliega las subcarpetas con su flecha; recordaremos dónde estabas.</li><li>Marca Lista en los PDFs que quieras tocar. Usa Ver y ordenar para organizarlos y Leer lista para seguir ese orden.</li><li>Abre una partitura. Usa la lupa del lector para cambiar de PDF o buscar texto y saltar a una página.</li></ol><p>Para instalarla, usa «Instalar app» en el menú del navegador. En iPhone: Safari → Compartir → Añadir a pantalla de inicio.</p><small>La primera apertura requiere conexión. Las siguientes pueden ser sin internet. Los PDFs de carpetas vinculadas, favoritos y progreso se guardan en este dispositivo. Al abrir la app no se accede a las carpetas. Pulsa Actualizar carpetas para revisar archivos nuevos, modificados o eliminados y autoriza el acceso si se solicita. Los PDFs elegidos sueltos duran solo esta sesión.</small></dialog>
+  <dialog id="help-dialog" class="dialog"><form method="dialog"><button class="icon-button dialog-close" aria-label="Cerrar">${icon('x')}</button></form><span class="dialog-icon">${icon('music-2')}</span><h2>Listo para tocar</h2><ol><li>Vincula tus carpetas o abre un PDF desde tu dispositivo.</li><li>Busca por cualquier parte del nombre o de la ruta, con o sin tildes. Despliega las subcarpetas con su flecha; recordaremos dónde estabas.</li><li>Añade a la cola los PDFs que quieras tocar. Usa Ver cola para organizarlos y Abrir cola para seguir ese orden.</li><li>Abre una partitura. Usa la lupa del lector para cambiar de PDF o buscar texto y saltar a una página.</li></ol><p>Para instalarla, usa «Instalar app» en el menú del navegador. En iPhone: Safari → Compartir → Añadir a pantalla de inicio.</p><small>La primera apertura requiere conexión. Las siguientes pueden ser sin internet. Los PDFs de carpetas vinculadas, favoritos y progreso se guardan en este dispositivo. Al abrir la app no se accede a las carpetas. Pulsa Actualizar carpetas para revisar archivos nuevos, modificados o eliminados y autoriza el acceso si se solicita. Los PDFs elegidos sueltos duran solo esta sesión.</small></dialog>
   <input type="file" id="folder-input" webkitdirectory multiple hidden />
   <input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden />
   <dialog id="delete-dialog" class="dialog"><h2>¿Quitar esta partitura?</h2><p>Se quitará de esta sesión. El archivo original seguirá en tu dispositivo.</p><div class="dialog-actions"><button class="button secondary" id="cancel-delete">Cancelar</button><button class="button danger" id="confirm-delete">Quitar partitura</button></div></dialog>
   <section id="reader" class="reader" aria-label="Lector de partituras" hidden>
-    <header class="reader-header"><button id="close-reader" class="icon-button" aria-label="Volver a la biblioteca">${icon('arrow-left')}</button><div class="reader-title"><strong id="reader-title"></strong><span id="reader-folder"></span><span id="reader-queue-position" class="reader-queue-position" hidden></span></div><button id="previous-score" class="icon-button" aria-label="PDF anterior" title="PDF anterior">${icon('chevron-left')}</button><button id="next-score" class="icon-button" aria-label="PDF siguiente" title="PDF siguiente">${icon('chevron-right')}</button><button id="reader-search-toggle" class="button secondary" aria-label="Buscar">${icon('search')}<span>Buscar</span></button><button id="split-search" class="button secondary" aria-label="Dividir y buscar" title="Dividir y buscar">${icon('panel-left')}<span>Dividir y buscar</span></button><button id="hide-reader-controls" class="icon-button" aria-label="Ocultar controles" title="Ocultar controles">${icon('eye-off')}</button><button id="reader-theme" class="icon-button" aria-label="Cambiar fondo del lector">${icon('moon')}</button><button id="fullscreen" class="icon-button" aria-label="Pantalla completa">${icon('maximize')}</button></header>
+    <header class="reader-header"><button id="close-reader" class="icon-button" aria-label="Volver a la biblioteca">${icon('arrow-left')}</button><div class="reader-title"><strong id="reader-title"></strong><span id="reader-folder"></span><span id="reader-queue-position" class="reader-queue-position" hidden></span></div><button id="previous-score" class="icon-button" aria-label="PDF anterior" title="PDF anterior">${icon('chevron-left')}</button><button id="next-score" class="icon-button" aria-label="PDF siguiente" title="PDF siguiente">${icon('chevron-right')}</button><button id="reader-search-toggle" class="button secondary" aria-label="Buscar">${icon('search')}<span>Buscar</span></button><button id="reader-queue-toggle" class="button secondary" aria-label="Ver cola" title="Ver cola">${icon('list')}<span>Cola</span></button><button id="split-search" class="button secondary" aria-label="Dividir y buscar" title="Dividir y buscar">${icon('panel-left')}<span>Dividir y buscar</span></button><button id="hide-reader-controls" class="icon-button" aria-label="Ocultar controles" title="Ocultar controles">${icon('eye-off')}</button><button id="reader-theme" class="icon-button" aria-label="Cambiar fondo del lector">${icon('moon')}</button><button id="fullscreen" class="icon-button" aria-label="Pantalla completa">${icon('maximize')}</button></header>
     <div class="reader-body"><div class="canvas-scroll" id="canvas-scroll"><div id="reader-status" role="status">Abriendo partitura…</div><canvas id="pdf-canvas" aria-label="Página de la partitura" hidden></canvas></div>
-      <aside id="reader-search-panel" class="reader-search-panel" hidden><div class="panel-title"><h2>Encuentra tu música</h2><button class="icon-button" id="close-search" aria-label="Cerrar búsqueda">${icon('x')}</button></div><div class="search-tabs"><button data-mode="library" class="active">Otra partitura</button><button data-mode="text">En este PDF</button></div><label class="search-field">${icon('search')}<input id="reader-search" type="search" placeholder="Nombre o carpeta…" aria-label="Buscar desde el lector" autocomplete="off"/></label><p id="search-hint">Abre otra partitura, ponla como siguiente o añádela al final de tu lista.</p><div id="reader-results" aria-live="polite"></div></aside>
+      <aside id="reader-search-panel" class="reader-search-panel" hidden><div class="panel-title"><h2 id="reader-panel-title">Encuentra tu música</h2><button class="icon-button" id="close-search" aria-label="Cerrar búsqueda">${icon('x')}</button></div><div class="search-tabs"><button data-mode="queue">Cola</button><button data-mode="library" class="active">Buscar PDFs</button><button data-mode="text">En este PDF</button></div><label class="search-field" id="reader-query-field">${icon('search')}<input id="reader-search" type="search" placeholder="Nombre o carpeta…" aria-label="Buscar desde el lector" autocomplete="off"/></label><p id="search-hint">Abre otra partitura, ponla como siguiente o añádela al final de tu cola.</p><div id="reader-results" aria-live="polite"></div></aside>
     </div>
     <footer class="reader-controls"><div class="zoom-controls"><button id="zoom-out" class="icon-button" aria-label="Alejar">${icon('minus')}</button><span id="zoom-label">100%</span><button id="zoom-in" class="icon-button" aria-label="Acercar">${icon('plus')}</button><button id="fit-page" class="icon-button" aria-label="Ajustar al ancho">${icon('scan')}</button></div><div class="page-controls"><button id="previous-page" class="icon-button" aria-label="Página anterior">${icon('chevron-left')}</button><label>Página <input id="page-input" type="number" min="1" value="1" aria-label="Ir a la página"/> <span id="page-total">/ 0</span></label><button id="next-page" class="icon-button" aria-label="Página siguiente">${icon('chevron-right')}</button></div><span class="reader-tip">← → para pasar página</span></footer>
     <button id="show-reader-controls" class="button reader-restore" aria-label="Mostrar controles" title="Mostrar controles (Esc)">${icon('eye')} Mostrar controles</button>
@@ -306,7 +309,7 @@ function refresh() {
   $('#reading-list-count').textContent = String(list.length);
   $('#reading-list-toolbar').hidden = !list.length;
   $('#reading-list-summary').textContent =
-    `${list.length} ${list.length === 1 ? 'partitura en tu lista' : 'partituras en tu lista'}`;
+    `${list.length} ${list.length === 1 ? 'partitura en tu cola' : 'partituras en tu cola'}`;
   $<HTMLSelectElement>('#sort').disabled = section === 'reading-list';
   $('#all-count').textContent = String(scores.length);
   $('#favorite-count').textContent = String(scores.filter((s) => s.favorite).length);
@@ -325,7 +328,7 @@ function refresh() {
   const heading = folder
     ? folder.split('/').at(-1)!
     : section === 'reading-list'
-      ? 'Tu lista de lectura'
+      ? 'Tu cola de partituras'
       : section === 'favorites'
         ? 'Tus favoritas'
         : section === 'recent'
@@ -348,7 +351,7 @@ function refresh() {
   if (!visible.length) {
     $('#score-list').innerHTML =
       section === 'reading-list'
-        ? `<div class="empty-search">${icon('list')}<h2>${query ? 'No hay coincidencias en tu lista' : 'Tu lista está vacía'}</h2><p>Marca la casilla Lista de las partituras que quieras tocar.</p><button class="button secondary" data-section="all">Elegir partituras</button></div>`
+        ? `<div class="empty-search">${icon('list')}<h2>${query ? 'No hay coincidencias en tu cola' : 'Tu cola está vacía'}</h2><p>Marca la casilla Cola de las partituras que quieras tocar.</p><button class="button secondary" data-section="all">Elegir partituras</button></div>`
         : scores.length
           ? `<div class="empty-search">${icon('search')}<h2>No encontramos partituras</h2><p>Prueba otro nombre o revisa una carpeta diferente.</p></div>`
           : `<div class="empty-state"><div class="sheet-art"><span class="art-note">♪</span><div class="paper"><span>Andante</span><div class="staff">𝄞 <span>♩ ♫ ♩</span></div><div class="staff">𝄞 <span>♫ ♩ ♬</span></div><div class="staff">𝄞 <span>♩ ♫ ♩</span></div></div><span class="art-folder">${icon('folder-open')}</span></div><span class="eyebrow">TU PRIMERA PARTITURA TE ESPERA</span><h2>Dale un lugar a tu música</h2><p>Abre un PDF directamente desde tu dispositivo.<br>Vincula tus carpetas y pulsa Actualizar carpetas para ver los cambios.</p><button class="button primary" data-action="open-file">${icon('folder-open')} Abrir PDF</button><span class="empty-footnote">Tu biblioteca guardada en este dispositivo</span></div><div class="feature-row"><div>${icon('folders')}<strong>El orden que ya conoces</strong><p>Conserva tus carpetas y subcarpetas.</p></div><div>${icon('search')}<strong>Una búsqueda, tu partitura</strong><p>Encuentra cualquier parte del nombre.</p></div><div>${icon('book-open')}<strong>Que la música siga</strong><p>Busca y cambia de PDF desde el lector.</p></div></div>`;
@@ -356,7 +359,7 @@ function refresh() {
     $('#score-list').innerHTML = visible
       .map(
         (s) =>
-          `<article class="score-card ${readingList.includes(s.id) ? 'in-reading-list' : ''}"><button class="score-open" data-open="${escape(s.id)}" aria-label="Abrir ${escape(title(s.name))}"><div class="score-preview" data-preview="${escape(s.id)}"><div class="score-preview-placeholder" aria-hidden="true"><div class="mini-sheet-title"></div><div class="mini-staff">𝄞 ♪ ♫</div><div class="mini-staff">♩ ♫ ♩</div><div class="mini-staff">♫ ♩ ♪</div></div>${s.lastOpened ? '<span class="resume-badge">Continuar leyendo</span>' : ''}</div><div class="score-info"><h2>${escape(title(s.name))}</h2><p>${icon('folder')} ${escape(s.folder)}</p><span>${formatBytes(s.size)}${s.lastOpened ? ` · Página ${s.lastPage}` : ''}</span></div></button><label class="score-select"><input type="checkbox" data-select-score="${escape(s.id)}" aria-label="Añadir ${escape(title(s.name))} a la lista" ${readingList.includes(s.id) ? 'checked' : ''}/><span>${readingList.includes(s.id) ? `${readingList.indexOf(s.id) + 1} · Lista` : 'Lista'}</span></label>${section === 'reading-list' ? `<div class="score-order"><button class="icon-button" data-move-score="${escape(s.id)}" data-direction="-1" aria-label="Subir ${escape(title(s.name))} en la lista" ${readingList.indexOf(s.id) === 0 ? 'disabled' : ''}>${icon('chevron-up')}</button><button class="icon-button" data-move-score="${escape(s.id)}" data-direction="1" aria-label="Bajar ${escape(title(s.name))} en la lista" ${readingList.indexOf(s.id) === readingList.length - 1 ? 'disabled' : ''}>${icon('chevron-down')}</button></div>` : ''}<div class="score-actions"><button class="icon-button ${s.favorite ? 'is-favorite' : ''}" data-favorite="${escape(s.id)}" aria-label="${s.favorite ? 'Quitar de' : 'Añadir a'} favoritas">${icon('star')}</button><button class="icon-button remove-button" data-remove="${escape(s.id)}" aria-label="Quitar ${escape(title(s.name))}">${icon('trash-2')}</button></div></article>`,
+          `<article class="score-card ${readingList.includes(s.id) ? 'in-reading-list' : ''}"><button class="score-open" data-open="${escape(s.id)}" aria-label="Abrir ${escape(title(s.name))}"><div class="score-preview" data-preview="${escape(s.id)}"><div class="score-preview-placeholder" aria-hidden="true"><div class="mini-sheet-title"></div><div class="mini-staff">𝄞 ♪ ♫</div><div class="mini-staff">♩ ♫ ♩</div><div class="mini-staff">♫ ♩ ♪</div></div>${s.lastOpened ? '<span class="resume-badge">Continuar leyendo</span>' : ''}</div><div class="score-info"><h2>${escape(title(s.name))}</h2><p>${icon('folder')} ${escape(s.folder)}</p><span>${formatBytes(s.size)}${s.lastOpened ? ` · Página ${s.lastPage}` : ''}</span></div></button><label class="score-select"><input type="checkbox" data-select-score="${escape(s.id)}" aria-label="Añadir ${escape(title(s.name))} a la cola" ${readingList.includes(s.id) ? 'checked' : ''}/><span>${readingList.includes(s.id) ? `${readingList.indexOf(s.id) + 1} · Cola` : 'Cola'}</span></label>${section === 'reading-list' ? `<div class="score-order"><button class="icon-button" data-move-score="${escape(s.id)}" data-direction="-1" aria-label="Subir ${escape(title(s.name))} en la cola" ${readingList.indexOf(s.id) === 0 ? 'disabled' : ''}>${icon('chevron-up')}</button><button class="icon-button" data-move-score="${escape(s.id)}" data-direction="1" aria-label="Bajar ${escape(title(s.name))} en la cola" ${readingList.indexOf(s.id) === readingList.length - 1 ? 'disabled' : ''}>${icon('chevron-down')}</button></div>` : ''}<div class="score-actions"><button class="icon-button ${s.favorite ? 'is-favorite' : ''}" data-favorite="${escape(s.id)}" aria-label="${s.favorite ? 'Quitar de' : 'Añadir a'} favoritas">${icon('star')}</button><button class="icon-button remove-button" data-remove="${escape(s.id)}" aria-label="Quitar ${escape(title(s.name))}">${icon('trash-2')}</button></div></article>`,
       )
       .join('');
   }
@@ -535,13 +538,9 @@ document.addEventListener('click', (event) => {
     if (!scores.some((score) => score.id === id)) return;
     const position = target.dataset.queuePosition === 'next' ? 'next' : 'last';
     readingList = queueReadingScore(availableReadingList(), current.id, id, position);
-    readerQueue = [...readingList];
-    rememberLibrary();
-    refresh();
-    updateReaderQueueControls();
-    void runReaderSearch();
+    saveReaderQueue(readingList);
     toast(
-      position === 'next' ? 'Partitura preparada como siguiente.' : 'Partitura añadida a la lista.',
+      position === 'next' ? 'Partitura preparada como siguiente.' : 'Partitura añadida a la cola.',
     );
   }
   if (target.dataset.moveScore) {
@@ -552,6 +551,18 @@ document.addEventListener('click', (event) => {
     );
     rememberLibrary();
     refresh();
+  }
+  if (target.dataset.queueRemove && current) {
+    const id = target.dataset.queueRemove;
+    if (readerQueue.indexOf(id) > readerQueue.indexOf(current.id))
+      saveReaderQueue(readerQueue.filter((item) => item !== id));
+  }
+  if (target.id === 'clear-upcoming' && current)
+    saveReaderQueue(readerQueue.slice(0, readerQueue.indexOf(current.id) + 1));
+  if (target.dataset.addToQueue) {
+    $<HTMLInputElement>('#reader-search').value = '';
+    setReaderMode('library');
+    $('#reader-search').focus();
   }
   if (target.dataset.reconnect) {
     const linked = linkedFolders.find((item) => item.id === target.dataset.reconnect);
@@ -745,6 +756,35 @@ function goToScore(direction: number) {
   const id = readerQueue[readerQueue.indexOf(current.id) + direction];
   if (id) void openScore(id);
 }
+
+function saveReaderQueue(ids: string[]) {
+  readerQueue = [...new Set(ids)].filter((id) => scores.some((score) => score.id === id));
+  readingList = [...readerQueue];
+  rememberLibrary();
+  refresh();
+  updateReaderQueueControls();
+  void runReaderSearch();
+}
+
+attachQueueDrag($('#reader-results'), (id, target) => {
+  if (current) saveReaderQueue(reorderUpcoming(readerQueue, current.id, id, target));
+});
+
+function renderReaderQueue() {
+  const index = current ? readerQueue.indexOf(current.id) : -1;
+  const upcoming = readerQueue
+    .slice(index + 1)
+    .filter((id) => scores.some((score) => score.id === id));
+  const rows = upcoming
+    .map((id, position) => {
+      const score = scores.find((item) => item.id === id)!;
+      return `<div class="queue-item" data-queue-item="${escape(id)}"><button class="icon-button queue-drag" data-queue-drag="${escape(id)}" aria-label="Reordenar ${escape(title(score.name))}" title="Arrastra o usa las flechas arriba y abajo">${icon('grip-vertical')}</button><button class="queue-score" data-open="${escape(id)}" aria-label="Abrir ${escape(title(score.name))} desde la cola"><span class="queue-number">${position + 1}</span><span><strong>${escape(title(score.name))}</strong><small>${escape(score.folder)}</small></span></button><button class="icon-button" data-queue-remove="${escape(id)}" aria-label="Quitar ${escape(title(score.name))} de la cola" title="Quitar de la cola">${icon('x')}</button></div>`;
+    })
+    .join('');
+  $('#reader-results').innerHTML =
+    `${current ? `<h3 class="queue-section-title">Ahora</h3><div class="queue-now">${icon('file-music')}<div><strong>${escape(title(current.name))}</strong><small>${escape(current.folder)}</small></div><span>Leyendo</span></div>` : ''}<div class="queue-heading"><h3 class="queue-section-title">A continuación <span>${upcoming.length}</span></h3><button class="text-button" id="clear-upcoming" ${upcoming.length ? '' : 'disabled'}>Vaciar</button></div><div class="queue-items">${rows || '<p class="search-message">No hay más partituras en la cola. Añade la que quieras tocar después.</p>'}</div><button class="button primary wide" data-add-to-queue="true">${icon('plus')} Agregar partituras</button>`;
+  drawIcons();
+}
 $('#previous-score').onclick = () => goToScore(-1);
 $('#next-score').onclick = () => goToScore(1);
 attachFileSwipe(
@@ -851,29 +891,45 @@ $('#close-reader').onclick = async () => {
 
 function toggleSearch(show: boolean) {
   $('#reader-search-panel').hidden = !show;
-  $('#reader-search-toggle').classList.toggle('selected', show);
+  $('#reader-search-toggle').classList.toggle('selected', show && searchMode !== 'queue');
+  $('#reader-queue-toggle').classList.toggle('selected', show && searchMode === 'queue');
+  $('#reader-queue-toggle').setAttribute('aria-expanded', String(show && searchMode === 'queue'));
   if (show) {
-    $('#reader-search').focus();
+    if (searchMode !== 'queue') $('#reader-search').focus();
     void runReaderSearch();
   } else textSearch++;
   void drawPage();
 }
-$('#reader-search-toggle').onclick = () => toggleSearch(!!$('#reader-search-panel').hidden);
+$('#reader-search-toggle').onclick = () => {
+  const show = !!$('#reader-search-panel').hidden || searchMode === 'queue';
+  if (show) setReaderMode('library');
+  toggleSearch(show);
+};
+$('#reader-queue-toggle').onclick = () => {
+  const show = !!$('#reader-search-panel').hidden || searchMode !== 'queue';
+  setReaderMode('queue');
+  toggleSearch(show);
+};
 $('#close-search').onclick = () => toggleSearch(false);
-document.querySelectorAll<HTMLElement>('[data-mode]').forEach((button) => {
-  button.onclick = () => {
-    searchMode = button.dataset.mode!;
-    document
-      .querySelectorAll<HTMLElement>('[data-mode]')
-      .forEach((b) => b.classList.toggle('active', b === button));
-    $<HTMLInputElement>('#reader-search').placeholder =
-      searchMode === 'text' ? 'Texto dentro de este PDF…' : 'Nombre o carpeta…';
-    $('#search-hint').textContent =
-      searchMode === 'text'
+function setReaderMode(mode: string) {
+  searchMode = mode;
+  document
+    .querySelectorAll<HTMLElement>('[data-mode]')
+    .forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
+  $('#reader-panel-title').textContent = mode === 'queue' ? 'Tu cola' : 'Encuentra tu música';
+  $('#reader-query-field').hidden = mode === 'queue';
+  $<HTMLInputElement>('#reader-search').placeholder =
+    mode === 'text' ? 'Texto dentro de este PDF…' : 'Nombre o carpeta…';
+  $('#search-hint').textContent =
+    mode === 'queue'
+      ? 'Arrastra las líneas para ordenar. La × quita una partitura de la cola.'
+      : mode === 'text'
         ? 'Busca texto y salta a la página. Los PDFs escaneados sin texto necesitan OCR.'
-        : 'Abre otra partitura, ponla como siguiente o añádela al final de tu lista.';
-    void runReaderSearch();
-  };
+        : 'Pulsa + para añadir a la cola. Abre las opciones para poner una partitura como siguiente.';
+  void runReaderSearch();
+}
+document.querySelectorAll<HTMLElement>('[data-mode]').forEach((button) => {
+  button.onclick = () => setReaderMode(button.dataset.mode!);
 });
 let searchTimer: ReturnType<typeof setTimeout>;
 $('#reader-search').oninput = () => {
@@ -885,6 +941,10 @@ async function runReaderSearch() {
   const request = ++textSearch;
   const value = $<HTMLInputElement>('#reader-search').value;
   const container = $('#reader-results');
+  if (searchMode === 'queue') {
+    renderReaderQueue();
+    return;
+  }
   if (searchMode === 'library') {
     const found = scores
       .filter((s) => matches(s, value))
@@ -895,14 +955,8 @@ async function runReaderSearch() {
             const isCurrent = current?.id === s.id;
             const inList = readingList.includes(s.id);
             const isNext = !!current && readerQueue[readerQueue.indexOf(current.id) + 1] === s.id;
-            const status = isCurrent
-              ? 'Leyendo'
-              : isNext
-                ? 'Siguiente'
-                : inList
-                  ? 'En la lista'
-                  : '';
-            return `<div class="reader-result"><button class="quick-result ${isCurrent ? 'current' : ''}" data-open="${escape(s.id)}">${icon('file-music')}<span><strong>${escape(title(s.name))}</strong><small>${escape(s.folder)}${status ? ` · ${status}` : ''}</small></span>${icon(isCurrent ? 'check' : 'arrow-up-right')}</button>${isCurrent ? '' : `<div class="reader-result-actions"><button class="button secondary" data-queue-score="${escape(s.id)}" data-queue-position="next" aria-label="Poner ${escape(title(s.name))} como siguiente" ${isNext && inList ? 'disabled' : ''}>${icon('chevron-right')} Poner siguiente</button><button class="button secondary" data-queue-score="${escape(s.id)}" data-queue-position="last" aria-label="Añadir ${escape(title(s.name))} al final de la lista" ${inList ? 'disabled' : ''}>${icon(inList ? 'check' : 'plus')} ${inList ? 'En la lista' : 'Añadir a la lista'}</button></div>`}</div>`;
+            const status = isCurrent ? 'Leyendo' : isNext ? 'Siguiente' : inList ? 'En cola' : '';
+            return `<div class="reader-result"><div class="reader-result-row"><button class="quick-result ${isCurrent ? 'current' : ''}" data-open="${escape(s.id)}">${icon('file-music')}<span><strong>${escape(title(s.name))}</strong><small>${escape(s.folder)}${status ? ` · ${status}` : ''}</small></span>${isCurrent ? icon('check') : ''}</button>${isCurrent ? '' : `<button class="icon-button queue-add ${inList ? 'is-queued' : ''}" data-queue-score="${escape(s.id)}" data-queue-position="last" aria-label="Añadir ${escape(title(s.name))} al final de la cola" title="${inList ? 'Ya está en la cola' : 'Añadir a la cola'}" ${inList ? 'disabled' : ''}>${icon(inList ? 'check' : 'plus')}</button><details class="reader-result-menu"><summary class="icon-button" aria-label="Opciones de ${escape(title(s.name))}">${icon('more-horizontal')}</summary><div><button class="button secondary" data-queue-score="${escape(s.id)}" data-queue-position="next" aria-label="Poner ${escape(title(s.name))} como siguiente" ${isNext && inList ? 'disabled' : ''}>${icon('chevron-right')} Poner siguiente</button></div></details>`}</div></div>`;
           })
           .join('')
       : '<p class="search-message">No encontramos partituras con ese nombre.</p>';
@@ -967,8 +1021,10 @@ document.addEventListener('keydown', (event) => {
   }
   if (event.key === '/' && !typing) {
     event.preventDefault();
-    if (current) toggleSearch(true);
-    else $('#library-search').focus();
+    if (current) {
+      setReaderMode('library');
+      toggleSearch(true);
+    } else $('#library-search').focus();
   }
   if (event.key === 'Escape' && current && !$('#reader-search-panel').hidden) toggleSearch(false);
   if (typing || !current || document.querySelector('dialog[open]')) return;

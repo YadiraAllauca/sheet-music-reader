@@ -13,7 +13,7 @@ Built with **TypeScript · Vite · PDF.js · IndexedDB · Progressive Web App AP
 - **Local library:** open individual PDFs or link multiple folders, including subfolders, on supported browsers.
 - **Persistent imports:** keep linked-folder PDFs in IndexedDB and reopen them without renewed folder permission, including offline.
 - **Manual refresh:** request folder access only when importing or refreshing; reconcile added, changed, or removed PDFs while preserving the last import if an update fails.
-- **Ordered reading list:** select PDFs across folders, rearrange them, and move through that sequence in the reader. Linked-file selections persist between visits.
+- **Reading queue:** see the current and upcoming scores in the reader, add PDFs with one tap, drag to reorder, or remove them from the sequence. Linked-file selections persist between visits.
 - **Folder navigation:** expand or collapse individual branches; restore the last folder or section and its expansion state on startup.
 - **Clean imports:** exclude hidden, trash, temporary, and filesystem metadata entries.
 - **Fast discovery:** search filenames and paths without case or accent sensitivity; use favorites, recent files, and grid or list views.
@@ -28,7 +28,7 @@ The interface is currently in Spanish. Documentation is in English; the [user gu
 
 ![Two demonstration scores open in independent reader panes](docs/images/split-reader.png)
 
-Screenshots use original, generated demonstration notation. See [how to reproduce them](docs/development.md#documentation-screenshots).
+[View the reading queue](docs/images/queue.png). Screenshots use original, generated demonstration notation. See [how to reproduce them](docs/development.md#documentation-screenshots).
 
 ## Run locally
 

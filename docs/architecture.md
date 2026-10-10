@@ -72,7 +72,7 @@ Linked score IDs include a generated folder ID and relative path. This keeps doc
 
 Startup restores metadata for cached documents without reading PDF bytes or consulting folder permissions. Scanning happens only after a user imports a folder, restores access, or presses the refresh button. Permission requests are initiated directly in the user gesture. The application does not poll or monitor the filesystem in the background, and scans do not overlap.
 
-## Library navigation and reading lists
+## Library navigation and reading queue
 
 `library-state.ts` validates the saved location, sort preference, expanded folder paths, and unique ordered reading-list IDs in the `atril-library-state` localStorage entry. Invalid or older state falls back to defaults. The active location and branch expansion survive startup; unavailable saved folders fall back to the full library. Search text is not persisted.
 
@@ -134,3 +134,9 @@ Imported folder PDFs can be read offline from IndexedDB without filesystem permi
 - Password-protected PDFs require an unencrypted copy.
 - There is no OCR, score editing, playback, cloud synchronization, or automatic folder watching.
 - Browser tests emulate a phone viewport and filesystem flows; they do not certify every physical tablet, browser, or document provider.
+
+## Reader queue interaction
+
+The primary reader shares one panel for its queue, library search, and embedded PDF text search. Queue view separates the current score from upcoming entries. Removing or clearing upcoming entries preserves the already-read prefix and current score. Edits update navigation controls and persist through the existing `readingList` field, preserving older saved selections. The queue initially reflects the active reader sequence; editing it makes that sequence the explicit saved selection.
+
+`reader-queue.ts` limits reordering to upcoming IDs and implements delegated pointer capture on a dedicated 44 px drag grip. Touch gestures on the grip reorder, while touches on row text retain native panel scrolling. Pointer cancellation leaves the order unchanged. Keyboard Up/Down on the grip uses the same move operation. Queue edits update metadata and the panel without reopening the PDF or affecting the secondary reader. Search results use a single add button, with play-next available in a disclosure menu.

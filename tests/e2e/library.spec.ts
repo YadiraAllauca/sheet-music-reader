@@ -39,7 +39,7 @@ test('lee archivos de la sesión, busca dentro del lector y permite reabrirlos s
   await expect(page.locator('#page-input')).toHaveValue('2');
   if (await page.locator('#reader-search-panel').isHidden())
     await page.locator('#reader-search-toggle').click();
-  await page.getByRole('button', { name: 'Otra partitura', exact: true }).click();
+  await page.getByRole('button', { name: 'Buscar PDFs', exact: true }).click();
   await page.locator('#reader-search').fill('Vals');
   await page.locator('.quick-result').click();
   await expect(page.locator('#reader-title')).toHaveText('Vals');
@@ -648,14 +648,14 @@ test('selecciona una lista ordenada y navega únicamente por esos PDFs', async (
     { name: '._A.pdf', mimeType: 'application/pdf', buffer },
   ]);
   await expect(page.locator('.score-card')).toHaveCount(3);
-  await page.getByRole('checkbox', { name: 'Añadir C a la lista', exact: true }).check();
-  await page.getByRole('checkbox', { name: 'Añadir A a la lista', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Añadir C a la cola', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Añadir A a la cola', exact: true }).check();
   await expect(page.locator('#reader')).toBeHidden();
   await expect(page.locator('#reading-list-count')).toHaveText('2');
   await page.locator('#library-search').fill('B');
   await expect(page.locator('.score-card')).toHaveCount(1);
   // Starting the selection ignores unrelated search results and alphabetical order.
-  await page.getByRole('button', { name: 'Leer lista', exact: true }).click();
+  await page.getByRole('button', { name: 'Abrir cola', exact: true }).click();
   await expect(page.locator('#reader-title')).toHaveText('C');
   await expect(page.locator('#reader-queue-position')).toHaveText('1 / 2');
   await expect(page.locator('#previous-score')).toBeDisabled();
@@ -664,23 +664,23 @@ test('selecciona una lista ordenada y navega únicamente por esos PDFs', async (
   await expect(page.locator('#reader-queue-position')).toHaveText('2 / 2');
   await expect(page.locator('#next-score')).toBeDisabled();
   await page.locator('#close-reader').click();
-  await page.getByRole('button', { name: 'Ver y ordenar', exact: true }).click();
+  await page.getByRole('button', { name: 'Ver cola', exact: true }).click();
   await expect(page.locator('.score-info h2')).toHaveText(['C', 'A']);
   await expect(page.locator('#sort')).toBeDisabled();
-  await page.getByRole('button', { name: 'Subir A en la lista', exact: true }).click();
+  await page.getByRole('button', { name: 'Subir A en la cola', exact: true }).click();
   await expect(page.locator('.score-info h2')).toHaveText(['A', 'C']);
   await page.locator('#list-view').click();
   await expect(page.locator('.score-info h2')).toHaveText(['A', 'C']);
-  await page.getByRole('button', { name: 'Leer lista', exact: true }).click();
+  await page.getByRole('button', { name: 'Abrir cola', exact: true }).click();
   await expect(page.locator('#reader-title')).toHaveText('A');
   await page.locator('#next-score').click();
   await expect(page.locator('#reader-title')).toHaveText('C');
   await page.locator('#close-reader').click();
   // Removing a selected item also removes its checkbox from this view.
-  await page.getByRole('checkbox', { name: 'Añadir C a la lista', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Añadir C a la cola', exact: true }).click();
   await expect(page.locator('.score-info h2')).toHaveText(['A']);
   await page.locator('#clear-reading-list').click();
-  await expect(page.getByText('Tu lista está vacía', { exact: true })).toBeVisible();
+  await expect(page.getByText('Tu cola está vacía', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Elegir partituras', exact: true }).click();
   await expect(page.locator('.score-card')).toHaveCount(3);
 });
@@ -731,14 +731,14 @@ test('recuerda subcarpetas, ubicación y lista sin cargar todas las partituras a
     .click();
   await page.locator('[data-folder="Música/Piano/Clásico"]').click();
   await expect(page.locator('.score-info h2')).toHaveText(['A']);
-  await page.getByRole('checkbox', { name: 'Añadir A a la lista', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Añadir A a la cola', exact: true }).check();
   await page.reload();
   await expect(page.locator('#heading')).toHaveText('Clásico');
   await expect(page.locator('#breadcrumb')).toHaveText('Música/Piano/Clásico');
   await expect(page.locator('.score-card')).toHaveCount(1);
   await expect(page.locator('[data-preview]')).toHaveCount(1);
   await expect(
-    page.getByRole('checkbox', { name: 'Añadir A a la lista', exact: true }),
+    page.getByRole('checkbox', { name: 'Añadir A a la cola', exact: true }),
   ).toBeChecked();
   if (page.viewportSize()!.width <= 650) await page.locator('#menu').click();
   await expect(
@@ -750,14 +750,14 @@ test('recuerda subcarpetas, ubicación y lista sin cargar todas las partituras a
     .click();
   await expect(page.locator('[data-folder="Música/Piano/Clásico"]')).toBeHidden();
   await page.locator('[data-folder="Música/Violín"]').click();
-  await page.getByRole('checkbox', { name: 'Añadir C a la lista', exact: true }).check();
-  await page.getByRole('button', { name: 'Ver y ordenar', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Añadir C a la cola', exact: true }).check();
+  await page.getByRole('button', { name: 'Ver cola', exact: true }).click();
   await expect(page.locator('.score-info h2')).toHaveText(['A', 'C']);
-  await page.getByRole('button', { name: 'Subir C en la lista', exact: true }).click();
+  await page.getByRole('button', { name: 'Subir C en la cola', exact: true }).click();
   await page.reload();
-  await expect(page.locator('#heading')).toHaveText('Tu lista de lectura');
+  await expect(page.locator('#heading')).toHaveText('Tu cola de partituras');
   await expect(page.locator('.score-info h2')).toHaveText(['C', 'A']);
-  await page.getByRole('button', { name: 'Leer lista', exact: true }).click();
+  await page.getByRole('button', { name: 'Abrir cola', exact: true }).click();
   await expect(page.locator('#reader-title')).toHaveText('C');
   await page.locator('#next-score').click();
   await expect(page.locator('#reader-title')).toHaveText('A');
@@ -859,21 +859,21 @@ test('selecciona con pulsación prolongada sin abrir el PDF y conserva toques y 
   }
   await start('B');
   await expect(
-    page.getByRole('checkbox', { name: 'Añadir B a la lista', exact: true }),
+    page.getByRole('checkbox', { name: 'Añadir B a la cola', exact: true }),
   ).toBeChecked();
   await end();
   await expect(page.locator('#reader')).toBeHidden();
   await expect(page.locator('#reading-list-count')).toHaveText('1');
   await start('C');
   await expect(
-    page.getByRole('checkbox', { name: 'Añadir C a la lista', exact: true }),
+    page.getByRole('checkbox', { name: 'Añadir C a la cola', exact: true }),
   ).toBeChecked();
   await end();
   await expect(page.locator('#reader')).toBeHidden();
   await expect(page.locator('#reading-list-count')).toHaveText('2');
   await start('B');
   await expect(
-    page.getByRole('checkbox', { name: 'Añadir B a la lista', exact: true }),
+    page.getByRole('checkbox', { name: 'Añadir B a la cola', exact: true }),
   ).not.toBeChecked();
   await end();
   await expect(page.locator('#reading-list-count')).toHaveText('1');
@@ -898,7 +898,7 @@ test('selecciona con pulsación prolongada sin abrir el PDF y conserva toques y 
   await page.waitForTimeout(500); // Hold beyond the long-press threshold after scrolling.
   await end();
   await expect(
-    page.getByRole('checkbox', { name: 'Añadir A a la lista', exact: true }),
+    page.getByRole('checkbox', { name: 'Añadir A a la cola', exact: true }),
   ).not.toBeChecked();
   await expect(page.locator('#reader')).toBeHidden();
   await expect.poll(() => page.evaluate(() => scrollY)).toBeLessThan(before);
@@ -906,7 +906,7 @@ test('selecciona con pulsación prolongada sin abrir el PDF y conserva toques y 
   await page.locator('#list-view').click();
   await start('B');
   await expect(
-    page.getByRole('checkbox', { name: 'Añadir B a la lista', exact: true }),
+    page.getByRole('checkbox', { name: 'Añadir B a la cola', exact: true }),
   ).toBeChecked();
   await end();
   await expect(page.locator('#reader')).toBeHidden();
@@ -942,6 +942,7 @@ test('prepara siguientes PDFs desde la búsqueda del lector sin interrumpir la p
     element.scrollTop = 40;
     return element.scrollTop;
   });
+  await page.getByLabel('Opciones de C', { exact: true }).click();
   await page.getByRole('button', { name: 'Poner C como siguiente', exact: true }).click();
   await expect(page.locator('#reader-title')).toHaveText('B');
   await expect(page.locator('#page-input')).toHaveValue('2');
@@ -950,16 +951,18 @@ test('prepara siguientes PDFs desde la búsqueda del lector sin interrumpir la p
     scroll,
   );
   await expect(page.locator('#reader-queue-position')).toHaveText('1 / 2');
+  await page.getByLabel('Opciones de C', { exact: true }).click();
   await expect(
     page.getByRole('button', { name: 'Poner C como siguiente', exact: true }),
   ).toBeDisabled();
   await expect(page.locator('#reader-results')).toContainText('Siguiente');
   await query.fill('A');
-  await page.getByRole('button', { name: 'Añadir A al final de la lista', exact: true }).click();
+  await page.getByRole('button', { name: 'Añadir A al final de la cola', exact: true }).click();
   await expect(
-    page.getByRole('button', { name: 'Añadir A al final de la lista', exact: true }),
+    page.getByRole('button', { name: 'Añadir A al final de la cola', exact: true }),
   ).toBeDisabled();
   await query.fill('D');
+  await page.getByLabel('Opciones de D', { exact: true }).click();
   await page.getByRole('button', { name: 'Poner D como siguiente', exact: true }).click();
   await expect(page.locator('#reader-title')).toHaveText('B');
   await expect(page.locator('#page-input')).toHaveValue('2');
@@ -981,11 +984,85 @@ test('prepara siguientes PDFs desde la búsqueda del lector sin interrumpir la p
   await expect(page.locator('#reader-title')).toHaveText('C');
   await page.locator('#close-reader').click();
   await expect(page.locator('#reader')).toBeHidden();
-  await page.getByRole('button', { name: 'Ver y ordenar', exact: true }).click();
+  await page.getByRole('button', { name: 'Ver cola', exact: true }).click();
   await expect(page.locator('.score-info h2')).toHaveText(['B', 'D', 'C', 'A']);
   expect(
     await page.evaluate(() => JSON.parse(localStorage.getItem('atril-library-state')!).readingList),
   ).toEqual(['B', 'D', 'C', 'A'].map((name) => `Importados/${name}.pdf`));
+});
+
+test('gestiona la cola desde el lector con arrastre, eliminación y nuevas partituras', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/');
+  const buffer = await pdf(['Ensayo']);
+  await page.locator('#file-input').setInputFiles(
+    ['A', 'B', 'C', 'D', 'E'].map((name) => ({
+      name: `${name}.pdf`,
+      mimeType: 'application/pdf',
+      buffer,
+    })),
+  );
+  await expect(page.locator('.score-card')).toHaveCount(5);
+  await page.getByRole('button', { name: 'Abrir A', exact: true }).click();
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await page.locator('#reader-queue-toggle').click();
+  await expect(page.locator('#reader-panel-title')).toHaveText('Tu cola');
+  await expect(page.locator('.queue-now strong')).toHaveText('A');
+  await expect(page.locator('.queue-score strong')).toHaveText(['B', 'C', 'D', 'E']);
+  await page.getByRole('button', { name: 'Quitar B de la cola', exact: true }).click();
+  await expect(page.locator('.queue-score strong')).toHaveText(['C', 'D', 'E']);
+  const handle = page.getByRole('button', { name: 'Reordenar E', exact: true });
+  await handle.scrollIntoViewIfNeeded();
+  const from = (await handle.boundingBox())!;
+  const target = (await page.locator('[data-queue-item="Importados/C.pdf"]').boundingBox())!;
+  const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+  const end = { x: start.x, y: target.y + target.height / 2 };
+  if (test.info().project.name === 'mobile') {
+    const touch = await context.newCDPSession(page);
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
+    for (let step = 1; step <= 12; step++)
+      await touch.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: start.x, y: start.y + ((end.y - start.y) * step) / 12 }],
+      });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  } else {
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 12 });
+    await page.mouse.up();
+  }
+  await expect(page.locator('.queue-score strong')).toHaveText(['E', 'C', 'D']);
+  await expect(page.locator('#reader-title')).toHaveText('A');
+  await page.getByRole('button', { name: 'Reordenar C', exact: true }).press('ArrowUp');
+  await expect(page.locator('.queue-score strong')).toHaveText(['C', 'E', 'D']);
+  await page.getByRole('button', { name: 'Quitar D de la cola', exact: true }).click();
+  await expect(page.locator('.queue-score strong')).toHaveText(['C', 'E']);
+  await page.screenshot({ path: `/tmp/atril-queue-panel-${test.info().project.name}.png` });
+  await page.locator('#close-search').click();
+  await page.locator('#next-score').click();
+  await expect(page.locator('#reader-title')).toHaveText('C');
+  await page.locator('#reader-queue-toggle').click();
+  await expect(page.locator('.queue-score strong')).toHaveText(['E']);
+  await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
+  await expect(page.locator('.queue-item')).toHaveCount(0);
+  await expect(page.locator('.queue-now strong')).toHaveText('C');
+  await expect(page.locator('#next-score')).toBeDisabled();
+  await page.getByRole('button', { name: 'Agregar partituras', exact: true }).click();
+  await page.locator('#reader-search').fill('B');
+  await page.getByRole('button', { name: 'Añadir B al final de la cola', exact: true }).click();
+  await page.getByRole('button', { name: 'Cola', exact: true }).click();
+  await expect(page.locator('.queue-score strong')).toHaveText(['B']);
+  await expect(page.locator('#reader-title')).toHaveText('C');
+  await page.locator('#close-search').click();
+  await page.locator('#next-score').click();
+  await expect(page.locator('#reader-title')).toHaveText('B');
+  await page.locator('#close-reader').click();
+  await expect(page.locator('#reader')).toBeHidden();
+  await page.getByRole('button', { name: 'Ver cola', exact: true }).click();
+  await expect(page.locator('.score-info h2')).toHaveText(['A', 'C', 'B']);
 });
 
 test('ofrece acciones táctiles amplias y separadas en móvil y tablet', async ({ page }) => {
