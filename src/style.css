@@ -1752,3 +1752,348 @@ select {
     height: 96px;
   }
 }
+
+/* Keep interface text readable on phones and tablets without browser zoom. */
+@media (max-width: 1100px), (any-pointer: coarse) {
+  body {
+    font-size: 16px;
+  }
+  .nav-item,
+  .button,
+  .heading-row .heading-actions .button,
+  .install-button,
+  .folder-action,
+  .search-tabs button,
+  .text-result strong {
+    font-size: 15px;
+  }
+  .nav-item,
+  .button,
+  .folder-action {
+    min-height: 44px;
+  }
+  .nav-label,
+  .eyebrow,
+  .count,
+  .local-badge,
+  .brand-caption {
+    font-size: 12px;
+  }
+  .breadcrumb,
+  .breadcrumb strong,
+  .heading-row p,
+  .stats > div,
+  .results-label,
+  .privacy-note strong,
+  .feature-row strong,
+  .text-button,
+  .reading-list-toolbar span,
+  .zoom-controls,
+  .page-controls,
+  .text-result span,
+  .search-message {
+    font-size: 14px;
+  }
+  .no-folders,
+  .empty-search p {
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .privacy-note span,
+  .feature-row p,
+  .library-footer > span,
+  .empty-footnote,
+  .offline-note,
+  .score-info p,
+  .score-info > span,
+  .score-select,
+  .touch-selection-hint,
+  .resume-badge,
+  .folder-problem,
+  .reader-title span,
+  .quick-result small,
+  #search-hint {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .score-info h2,
+  .reader-title strong,
+  .quick-result strong,
+  .reading-list-toolbar strong {
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .score-info h2 {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .search-field {
+    height: 48px;
+  }
+  .search-field input,
+  select,
+  .page-controls input {
+    font-size: 16px;
+  }
+  select {
+    min-height: 44px;
+    max-width: 100%;
+  }
+  .empty-state p,
+  .dialog p,
+  .dialog li {
+    font-size: 16px;
+    line-height: 1.65;
+  }
+  .dialog small {
+    font-size: 14px;
+  }
+  #toast {
+    font-size: 15px;
+  }
+  .reader-restore {
+    font-size: 14px;
+  }
+  .heading-row p,
+  .stats > div,
+  .results-label,
+  .privacy-note span,
+  .score-info p,
+  .score-info > span,
+  .quick-result small,
+  .dialog small,
+  #search-hint {
+    color: #74675e;
+  }
+  .reader-body {
+    position: relative;
+  }
+  .reader.split .reader-search-panel {
+    top: 0;
+  }
+  .secondary-header {
+    min-height: 72px;
+  }
+  .secondary-search {
+    top: 72px;
+  }
+  .folder-toggle,
+  .folder-toggle-spacer {
+    height: 44px;
+  }
+  .folder-options > summary {
+    height: 40px;
+  }
+  .folder-options[open] {
+    margin-top: -44px;
+  }
+}
+
+@media (max-width: 650px) {
+  .sidebar {
+    width: min(320px, calc(100vw - 24px));
+    overflow-y: auto;
+  }
+  #folders {
+    min-height: 120px;
+  }
+  .brand {
+    padding-bottom: 24px;
+  }
+  .sidebar-bottom {
+    margin-top: 16px;
+    padding-top: 16px;
+  }
+  .library-content {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+  .breadcrumb {
+    font-size: 0;
+  }
+  .stats {
+    gap: 12px 20px;
+  }
+  .score-info {
+    padding-bottom: 52px;
+  }
+  .score-select {
+    min-height: 36px;
+    bottom: 6px;
+    left: 10px;
+  }
+  .score-select input {
+    width: 20px;
+    height: 20px;
+  }
+  .list .score-open {
+    padding-right: 12px;
+  }
+  .list .score-actions,
+  .list .score-order ~ .score-actions {
+    bottom: 7px;
+  }
+  .list .score-order {
+    right: 80px;
+    bottom: 7px;
+  }
+  .reader-header {
+    gap: 4px;
+  }
+  .reader-header .reader-title {
+    flex: 1 1 calc(100% - 56px);
+  }
+  .reader-header .icon-button {
+    width: 40px;
+    height: 44px;
+  }
+  .reader-header #split-search {
+    font-size: 14px;
+    gap: 5px;
+    padding: 7px;
+  }
+  .reader-controls .icon-button {
+    width: 32px;
+    height: 40px;
+  }
+  .page-controls,
+  .zoom-controls {
+    gap: 2px;
+  }
+  .page-controls input {
+    width: 48px;
+    margin: 0 2px;
+  }
+  .reader-search-panel {
+    top: 0;
+    bottom: 0;
+  }
+  .dialog-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 360px) {
+  .score-list.grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Separate touch actions and give each one a full finger-sized target. */
+@media (any-pointer: coarse), (max-width: 1100px) {
+  .button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .search-tabs button {
+    min-height: 44px;
+  }
+  .install-button,
+  .text-button {
+    min-height: 44px;
+  }
+  .icon-button,
+  .folder-heading .icon-button,
+  .view-switch .icon-button,
+  .score-actions .icon-button,
+  .score-order .icon-button,
+  .reader-header .icon-button,
+  .reader-controls .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+  .folder-toggle,
+  .folder-toggle-spacer,
+  .folder-options,
+  .folder-options > summary {
+    width: 44px;
+  }
+  .folder-toggle,
+  .folder-toggle-spacer,
+  .folder-options > summary {
+    height: 44px;
+  }
+  .folder-toggle svg {
+    width: 20px;
+    height: 20px;
+  }
+  .folder-options {
+    padding-top: 0;
+  }
+  .folder-options[open] {
+    width: 100%;
+    margin-top: -44px;
+  }
+  .folder-row:has(.folder-options[open]) > .folder-item {
+    margin-right: 44px;
+  }
+  .score-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-content: start;
+  }
+  .score-open {
+    grid-column: 1 / -1;
+  }
+  .grid .score-info,
+  .grid .score-card:has(.score-order) .score-info {
+    padding-bottom: 12px;
+  }
+  .score-select,
+  .list .score-select {
+    position: static;
+    min-height: 44px;
+    margin: 0 0 8px 8px;
+    padding: 4px;
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .score-actions,
+  .list .score-actions {
+    position: static;
+    display: flex;
+    gap: 4px;
+    margin: 0 8px 8px 0;
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .score-order,
+  .list .score-order {
+    position: static;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    gap: 8px;
+    padding: 0 12px 12px;
+  }
+  .list .score-open {
+    padding-right: 12px;
+  }
+  .view-switch {
+    gap: 4px;
+  }
+  .dialog-close {
+    top: 12px;
+    right: 12px;
+  }
+}
+
+@media (min-width: 651px) and (max-width: 1100px) {
+  .sidebar {
+    width: 260px;
+  }
+  .main {
+    margin-left: 260px;
+  }
+}
+
+@media (max-width: 480px) {
+  .score-list.grid {
+    grid-template-columns: 1fr;
+  }
+  .score-preview {
+    height: 160px;
+  }
+  .reader-header .reader-title {
+    flex-basis: calc(100% - 56px);
+  }
+}

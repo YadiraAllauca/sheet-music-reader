@@ -35,6 +35,8 @@ Search any part of a filename or folder path, including punctuation. Matching ig
 
 Use **Favoritas**, **Recientes**, folder navigation, sorting, and grid/list views to narrow the library. The panel button at the top left hides or shows the sidebar. Desktop visibility is remembered; on phones, selecting a folder or section closes the sidebar.
 
+Phones and tablets use larger interface text and input fields. Touch actions, including folder arrows, favorites, removal, and reader controls, have targets of at least 44 × 44 CSS pixels. Small phones show one card per row, with selection and file actions separated from the PDF preview.
+
 Use the chevron beside a folder to show or hide its subfolders. Clicking the folder name selects its PDFs, including descendants. Each branch keeps its own expansion state. Atril remembers the last folder or section and the sort preference; reopening it renders only that selection instead of all scores. Search text is cleared when changing location and is not restored between visits. If the saved folder is no longer available, startup returns to the full library.
 
 First-page previews load as cards approach the viewport. A sheet-shaped placeholder appears while loading or if a PDF cannot be read. Removing a linked score from the library hides it for the current session; it returns after reloading if its copy is still imported. Refreshing removes its saved copy if it was deleted from the original folder.

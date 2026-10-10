@@ -488,9 +488,16 @@ test('muestra primeras páginas como miniaturas en tarjetas y lista', async ({ p
     { name: 'Dañado.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.7\ninvalid') },
   ]);
   await expect(page.locator('.score-card')).toHaveCount(3);
+  // Previews are lazy: visit each card before checking the complete set.
+  for (const name of ['Sonata', 'Vals', 'Dañado']) {
+    await page.getByRole('button', { name: `Abrir ${name}`, exact: true }).scrollIntoViewIfNeeded();
+    if (name !== 'Dañado')
+      await expect(page.locator(`[data-preview="Importados/${name}.pdf"] img`)).toBeVisible();
+  }
   await expect(page.locator('.score-thumbnail')).toHaveCount(2);
   await expect(page.locator('.score-preview-placeholder')).toHaveCount(1);
   const sonata = page.locator('[data-preview="Importados/Sonata.pdf"] img');
+  await sonata.scrollIntoViewIfNeeded();
   await expect(sonata).toBeVisible();
   await expect(sonata).toHaveJSProperty('complete', true);
   expect(await sonata.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
@@ -878,13 +885,14 @@ test('selecciona con pulsación prolongada sin abrir el PDF y conserva toques y 
   await expect(page.locator('#pdf-canvas')).toBeVisible();
   await page.locator('#close-reader').click();
   // Moving to scroll cancels the hold even if the finger remains down afterwards.
+  await expect(page.locator('#reader')).toBeHidden();
   await page.setViewportSize({ ...page.viewportSize()!, height: 480 });
   const point = await start('A');
   const before = await page.evaluate(() => scrollY);
   for (let step = 1; step <= 5; step++) {
     await touch.send('Input.dispatchTouchEvent', {
       type: 'touchMove',
-      touchPoints: [{ x: point.x, y: point.y - step * 12 }],
+      touchPoints: [{ x: point.x, y: point.y + step * 12 }],
     });
   }
   await page.waitForTimeout(500); // Hold beyond the long-press threshold after scrolling.
@@ -893,7 +901,7 @@ test('selecciona con pulsación prolongada sin abrir el PDF y conserva toques y 
     page.getByRole('checkbox', { name: 'Añadir A a la lista', exact: true }),
   ).not.toBeChecked();
   await expect(page.locator('#reader')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeLessThan(before);
   // The same delegated handler works after switching to rows.
   await page.locator('#list-view').click();
   await start('B');
@@ -903,4 +911,61 @@ test('selecciona con pulsación prolongada sin abrir el PDF y conserva toques y 
   await end();
   await expect(page.locator('#reader')).toBeHidden();
   await touch.detach();
+});
+
+test('ofrece acciones táctiles amplias y separadas en móvil y tablet', async ({ page }) => {
+  const bytes = [...(await pdf(['Estudio táctil']))];
+  for (const width of [320, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    await page.evaluate((data) => {
+      const input = document.querySelector<HTMLInputElement>('#folder-input')!;
+      const transfer = new DataTransfer();
+      const file = new File([new Uint8Array(data)], 'Estudio.pdf', { type: 'application/pdf' });
+      Object.defineProperty(file, 'webkitRelativePath', { value: 'Repertorio/Piano/Estudio.pdf' });
+      transfer.items.add(file);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change'));
+    }, bytes);
+    await expect(page.locator('.score-card')).toHaveCount(1);
+    await expect(page.locator('.heading-actions .button').first()).toHaveCSS('font-size', '15px');
+    await expect(page.locator('#library-search')).toHaveCSS('font-size', '16px');
+    const favorite = page.locator('[data-favorite]');
+    const remove = page.locator('[data-remove]');
+    for (const view of ['#grid-view', '#list-view']) {
+      await page.locator(view).click();
+      const first = (await favorite.boundingBox())!;
+      const second = (await remove.boundingBox())!;
+      expect(first.width).toBeGreaterThanOrEqual(44);
+      expect(first.height).toBeGreaterThanOrEqual(44);
+      expect(second.width).toBeGreaterThanOrEqual(44);
+      expect(second.height).toBeGreaterThanOrEqual(44);
+      expect(second.x - (first.x + first.width)).toBeGreaterThanOrEqual(4);
+    }
+    await favorite.click();
+    await expect(favorite).toHaveClass(/is-favorite/);
+    await expect(page.locator('#reader')).toBeHidden();
+    await remove.click();
+    await expect(page.locator('#delete-dialog')).toBeVisible();
+    await page.locator('#cancel-delete').click();
+    if (width <= 650) await page.locator('#menu').click();
+    for (const selector of ['.folder-toggle', '.folder-heading .icon-button']) {
+      const bounds = (await page.locator(selector).first().boundingBox())!;
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+    if (width <= 650) await page.locator('#menu').click();
+    await page.getByRole('button', { name: 'Abrir Estudio', exact: true }).click();
+    await expect(page.locator('#pdf-canvas')).toBeVisible();
+    for (const selector of ['#close-reader', '#reader-theme', '.zoom-controls .icon-button']) {
+      const bounds = (await page.locator(selector).first().boundingBox())!;
+      expect(bounds.width).toBeGreaterThanOrEqual(44);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+    await page.locator('#close-reader').click();
+    await expect(page.locator('#reader')).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      width,
+    );
+  }
 });
