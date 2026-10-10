@@ -4,7 +4,7 @@ Start with the [development guide](docs/development.md) and [architecture overvi
 
 ## Scope and style
 
-Keep changes focused on the local PDF library and reader. Preserve read-only access to original documents and the boundary between persistent folder metadata and session-only PDF content.
+Keep changes focused on the local PDF library and reader. Preserve read-only access to original documents and the boundary between persistent linked-folder PDF copies and session-only individually selected files. Opening the app must not request folder access; failed refreshes must preserve the previous import.
 
 Use descriptive TypeScript names, small focused modules, and the existing HTML/CSS conventions. Format with Prettier and lint with ESLint. Write repository documentation in English; the product interface is currently Spanish.
 

@@ -10,7 +10,7 @@ Atril is a client-side TypeScript application served as static files. There is n
 | ----------------- | ---------------------------------- | -------------------------------------------------------- |
 | Interface         | TypeScript, HTML, CSS, Lucide      | Library, folder actions, responsive reader controls      |
 | PDF engine        | PDF.js                             | Document loading, canvas rendering, embedded-text search |
-| Local persistence | IndexedDB via `idb`                | Folder handles and reading metadata                      |
+| Local persistence | IndexedDB via `idb`                | Folder handles, imported PDF bytes, and reading metadata |
 | Build             | Vite                               | Development server and static production bundle          |
 | Offline shell     | `vite-plugin-pwa` / Workbox        | Service worker and app-resource precaching               |
 | Verification      | Vitest, fake-indexeddb, Playwright | Unit tests and desktop/mobile browser flows              |
@@ -21,8 +21,8 @@ Atril is a client-side TypeScript application served as static files. There is n
 src/
   main.ts                Application state, library UI, and primary reader
   library.ts             Score metadata, search normalization, and folder paths
-  linked-folders.ts      Persistent folder handles and recursive scanning
-  storage.ts             Session references and saved-progress integration
+  linked-folders.ts      Persistent imports, folder handles, and recursive scanning
+  storage.ts             Session files, imported snapshots, and reading progress
   pdf.ts                 PDF.js loading, rendering, search, and cleanup
   split-reader.ts        Independent second reader and its controls
   file-swipe.ts          Touch file gestures that preserve native scrolling
@@ -44,14 +44,17 @@ vercel.json              Static deployment configuration
 ```mermaid
 flowchart LR
   Selection[User-selected PDF] --> Session[Session file references]
-  Folder[User-approved folder] --> Scan[Recursive metadata scan]
+  Folder[User-approved import or refresh] --> Scan[Recursive metadata scan]
   Scan --> Snapshot[Complete folder snapshot]
-  Snapshot --> Session
+  Snapshot --> Copies[(IndexedDB: imported PDFs and metadata)]
+  Copies --> Library
   Session --> Library[Library and search]
   Library --> Reader[Primary or secondary PDF reader]
   Library --> Preview[Visible first-page previews]
-  Reader --> Original[Read original PDF bytes locally]
-  Preview --> Original
+  Reader --> Copies
+  Preview --> Copies
+  Reader --> Session
+  Preview --> Session
   Folder --> DB[(IndexedDB: folder handles)]
   Reader --> Progress[(IndexedDB: linked-file progress)]
 ```
@@ -60,25 +63,30 @@ flowchart LR
 
 `linked-folders.ts` stores directory handles in the `folders` object store of `atril-linked-folders`. The application requests read-only access and checks permission before scanning.
 
-A scan walks subdirectories and collects PDF metadata and file handles. It builds the entire snapshot before applying changes; a failed scan cannot remove valid entries through a partial result. The storage layer reconciles additions, updates, and removals for that folder's ID.
+A scan walks subdirectories and collects PDF metadata and `File` snapshots. The storage layer reads bytes only for new or changed files, then commits the folder's metadata, PDF copies, and deletions in one IndexedDB transaction. Memory is reconciled only after the commit. Read errors, canceled permissions, and quota failures preserve the previous imported snapshot. Each folder commits independently; a failure in one does not discard successful updates to another.
 
 Linked score IDs include a generated folder ID and relative path. This keeps document identity separate when distinct linked roots share a name. Sidebar navigation groups paths by their displayed folder names, so same-named roots are not visually separated in the current interface.
 
-The application scans at startup, after a user links a folder or restores access, and when the refresh button is pressed. It does not poll or monitor the filesystem in the background. Scans do not overlap.
+Startup restores metadata for cached documents without reading PDF bytes or consulting folder permissions. Scanning happens only after a user imports a folder, restores access, or presses the refresh button. Permission requests are initiated directly in the user gesture. The application does not poll or monitor the filesystem in the background, and scans do not overlap.
 
 ## Storage boundaries
 
-| Location             | Contents                                                                                                                         |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Memory               | Library entries, individual `File` objects, original file handles, active PDF documents, current-session hidden scores, previews |
-| IndexedDB `folders`  | Linked directory handles, generated IDs, and names                                                                               |
-| IndexedDB `progress` | Metadata for linked scores when reading progress or favorites are saved                                                          |
-| localStorage         | Grid/list preference and desktop sidebar visibility                                                                              |
-| Service worker cache | Built app resources and local PDF.js dependencies                                                                                |
+| Location              | Contents                                                                                                  |
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
+| Memory                | Library entries, individual `File` objects, active PDF documents, current-session hidden scores, previews |
+| IndexedDB `folders`   | Linked directory handles, generated IDs, and names                                                        |
+| IndexedDB `progress`  | Metadata for all imported PDFs, including favorites and reading progress                                  |
+| IndexedDB `documents` | Imported PDF bytes as ArrayBuffers, keyed by linked score ID                                              |
+| localStorage          | Grid/list preference and desktop sidebar visibility                                                       |
+| Service worker cache  | Built app resources and local PDF.js dependencies                                                         |
 
-PDF bytes and thumbnail images are not persisted by Atril. Unlinking removes the folder record and its saved progress. Clearing browser site data also removes preferences, permissions/handles, and offline resources.
+Linked-folder PDF bytes are persisted locally; thumbnails are not. Readers and previews fetch copies from IndexedDB on demand, avoiding loading all PDF bytes at startup. Unlinking removes the folder record, its PDF copies, and saved progress. Clearing browser site data also removes preferences, permissions/handles, and offline resources.
 
 Favorites survive a detected PDF change; the saved page resets when size or modification time differs. This comparison is metadata-based, not a content hash: a change preserving both values is not detected. Renaming a file changes its path identity.
+
+Database version 2 adds the `documents` store while retaining version 1 folder handles and progress. Existing users must refresh their folders once to create the first saved copies.
+
+Storage is browser-managed and subject to quota, eviction, and user deletion. Atril does not promise permanent backups. Modified PDF bytes for a folder are staged in memory before its atomic commit, so very large imports may require substantial memory and storage.
 
 Legacy versions may have stored PDF copies in a separate `atril-library` database. The current implementation does not read or create that database; clearing site data removes any legacy data as well.
 
@@ -100,7 +108,7 @@ The cache holds up to 48 previews in memory, keyed by score ID, size, and modifi
 
 The build generates a service worker and precaches the application shell. `prepare-assets.mjs`, run by `postinstall`, copies PDF.js character maps, standard fonts, and WebAssembly resources into `public/pdfjs/`. Runtime PDF reading does not depend on a CDN.
 
-Offline delivery does not grant filesystem access. The browser must still provide a selected file or an authorized folder handle. Cloud-backed providers may require network access.
+Imported folder PDFs can be read offline from IndexedDB without filesystem permission, provided the application shell is cached. Individually selected files remain session-only. Importing or refreshing original folders still requires browser permission; cloud-backed providers may require network access.
 
 ## Current boundaries
 

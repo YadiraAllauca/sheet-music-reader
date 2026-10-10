@@ -1,6 +1,13 @@
 import 'fake-indexeddb/auto';
-import { expect, it } from 'vitest';
-import { scanFolder, type LocalDirectoryHandle, type LocalFileHandle } from '../src/linked-folders';
+import { expect, it, vi } from 'vitest';
+import {
+  scanFolder,
+  unlinkFolder,
+  getCachedDocument,
+  getProgress,
+  type LocalDirectoryHandle,
+  type LocalFileHandle,
+} from '../src/linked-folders';
 import { applyFolderSnapshot, getFile, getScores, updateScore, forgetFolder } from '../src/storage';
 
 function directory(
@@ -58,8 +65,8 @@ it('detecta altas, cambios y bajas recursivas sin mezclar carpetas con el mismo 
   forgetFolder('first');
   forgetFolder('second');
 });
-it('lee la versión más reciente del archivo original al abrirlo', async () => {
-  let original = new File(['%PDF-1.7 old'], 'Local.pdf');
+it('lee la copia importada hasta actualizar y la restaura sin acceder a los originales', async () => {
+  let original = new File(['%PDF-1.7 old'], 'Local.pdf', { lastModified: 1 });
   const handle: LocalFileHandle = {
     kind: 'file',
     name: original.name,
@@ -70,8 +77,20 @@ it('lee la versión más reciente del archivo original al abrirlo', async () => 
   const folder = { id: 'fresh', name: 'Local', handle: directory('Local', [handle]) };
   const entries = await scanFolder(folder);
   await applyFolderSnapshot(folder.id, entries);
-  original = new File(['%PDF-1.7 new'], 'Local.pdf');
-  expect(await getFile(entries[0].score.id)).toBe(original);
+  original = new File(['%PDF-1.7 new'], 'Local.pdf', { lastModified: 2 });
+  expect(await (await getFile(entries[0].score.id))!.text()).toBe('%PDF-1.7 old');
+  forgetFolder(folder.id);
+  const { restoreLibrary } = await import('../src/storage');
+  handle.getFile = vi.fn().mockRejectedValue(new Error('Sin permiso'));
+  await restoreLibrary();
+  expect(await (await getFile(entries[0].score.id))!.text()).toBe('%PDF-1.7 old');
+  expect(handle.getFile).not.toHaveBeenCalled();
+  handle.getFile = async () => original;
+  await applyFolderSnapshot(folder.id, await scanFolder(folder));
+  expect(await (await getFile(entries[0].score.id))!.text()).toBe('%PDF-1.7 new');
+  await unlinkFolder(folder.id);
+  expect(await getCachedDocument(entries[0].score.id)).toBeUndefined();
+  expect((await getProgress()).some((score) => score.id === entries[0].score.id)).toBe(false);
   forgetFolder(folder.id);
 });
 it('no produce una instantánea parcial si falla una carpeta', async () => {
@@ -85,4 +104,79 @@ it('no produce una instantánea parcial si falla una carpeta', async () => {
     handle: directory('Local', [file('Primero.pdf'), broken]),
   };
   await expect(scanFolder(folder)).rejects.toThrow('Permiso revocado');
+});
+
+it('conserva la instantánea anterior completa si falla la lectura de una copia nueva', async () => {
+  const folder = {
+    id: 'atomic',
+    name: 'Local',
+    handle: directory('Local', [file('Anterior.pdf')]),
+  };
+  const initial = await scanFolder(folder);
+  await applyFolderSnapshot(folder.id, initial);
+  const next = await scanFolder({ ...folder, handle: directory('Local', [file('Nuevo.pdf')]) });
+  next[0].file.arrayBuffer = async () => {
+    throw new Error('No se pudo copiar');
+  };
+  await expect(applyFolderSnapshot(folder.id, next)).rejects.toThrow('No se pudo copiar');
+  expect((await getScores()).filter((score) => score.id.startsWith('linked:atomic/'))).toEqual([
+    initial[0].score,
+  ]);
+  expect(await getCachedDocument(initial[0].score.id)).toBeDefined();
+  expect(await getCachedDocument(next[0].score.id)).toBeUndefined();
+  await unlinkFolder(folder.id);
+  forgetFolder(folder.id);
+});
+
+it('reutiliza los bytes guardados de PDFs sin cambios durante la actualización', async () => {
+  const folder = {
+    id: 'unchanged',
+    name: 'Local',
+    handle: directory('Local', [file('Igual.pdf')]),
+  };
+  await applyFolderSnapshot(folder.id, await scanFolder(folder));
+  const entries = await scanFolder(folder);
+  const read = vi.spyOn(entries[0].file, 'arrayBuffer');
+  await applyFolderSnapshot(folder.id, entries);
+  expect(read).not.toHaveBeenCalled();
+  expect(await (await getFile(entries[0].score.id))!.text()).toBe('%PDF-1.7');
+  await unlinkFolder(folder.id);
+  forgetFolder(folder.id);
+});
+
+it('revierte metadatos y bajas si falta espacio al guardar nuevos PDFs', async () => {
+  const folder = {
+    id: 'quota',
+    name: 'Local',
+    handle: directory('Local', [file('Anterior.pdf')]),
+  };
+  const initial = await scanFolder(folder);
+  await applyFolderSnapshot(folder.id, initial);
+  const next = await scanFolder({ ...folder, handle: directory('Local', [file('Nuevo.pdf')]) });
+  const put = IDBObjectStore.prototype.put;
+  const failingPut = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+    this: IDBObjectStore,
+    value: unknown,
+    key?: IDBValidKey,
+  ) {
+    if (this.name === 'documents') throw new DOMException('Sin espacio', 'QuotaExceededError');
+    return put.call(this, value, key);
+  });
+  try {
+    await expect(applyFolderSnapshot(folder.id, next)).rejects.toMatchObject({
+      name: 'QuotaExceededError',
+    });
+  } finally {
+    failingPut.mockRestore();
+  }
+  expect((await getScores()).filter((score) => score.id.startsWith('linked:quota/'))).toEqual([
+    initial[0].score,
+  ]);
+  expect(await getCachedDocument(initial[0].score.id)).toBeDefined();
+  expect(await getCachedDocument(next[0].score.id)).toBeUndefined();
+  expect((await getProgress()).filter((score) => score.id.startsWith('linked:quota/'))).toEqual([
+    initial[0].score,
+  ]);
+  await unlinkFolder(folder.id);
+  forgetFolder(folder.id);
 });

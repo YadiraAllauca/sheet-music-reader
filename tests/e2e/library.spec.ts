@@ -204,10 +204,12 @@ test('vincula varias carpetas, restaura referencias y actualiza altas, cambios y
     let granted = false;
     const prototype = FileSystemDirectoryHandle.prototype;
     prototype.queryPermission = async () => (granted ? 'granted' : 'prompt');
-    prototype.requestPermission = async () => {
-      granted = true;
-      return 'granted';
-    };
+    prototype.requestPermission = async () => (granted ? 'granted' : 'denied');
+    Object.defineProperty(window, 'restoreTestPermission', {
+      value: () => {
+        granted = true;
+      },
+    });
   });
   // Updating exposes the permission actions on the folder itself.
   if (page.viewportSize()!.width <= 650) await page.locator('#menu').click();
@@ -219,8 +221,15 @@ test('vincula varias carpetas, restaura referencias y actualiza altas, cambios y
     page.getByRole('button', { name: 'Restablecer acceso a Ensayos', exact: true }),
   ).toBeVisible();
   await page.screenshot({ path: `/tmp/atril-folder-actions-${test.info().project.name}.png` });
+  await page.evaluate(() =>
+    (window as unknown as { restoreTestPermission: () => void }).restoreTestPermission(),
+  );
   await page.getByRole('button', { name: 'Restablecer acceso a Ensayos', exact: true }).click();
+  await expect(page.locator('.folder-warning')).toHaveCount(1);
+  if (page.viewportSize()!.width <= 650) await page.locator('#menu').click();
+  await page.locator('#refresh-folders').click();
   await expect(page.locator('.folder-warning')).toHaveCount(0);
+  if (page.viewportSize()!.width <= 650) await page.locator('#menu').click();
   await page.getByLabel('Opciones de carpeta Ensayos', { exact: true }).click();
   await page.getByRole('button', { name: 'Desvincular Ensayos', exact: true }).click();
   await expect(page.locator('.score-card')).toHaveCount(1);
@@ -236,6 +245,110 @@ test('vincula varias carpetas, restaura referencias y actualiza altas, cambios y
     path: `/tmp/atril-linked-${test.info().project.name}.png`,
     fullPage: true,
   });
+});
+
+test('conserva PDFs importados sin permiso al recargar y solo pide acceso al actualizar', async ({
+  page,
+  context,
+}) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('permission-requests', '0');
+    sessionStorage.setItem('folder-reads', '0');
+    const prototype = FileSystemDirectoryHandle.prototype;
+    const values = prototype.values;
+    prototype.values = function () {
+      sessionStorage.setItem(
+        'folder-reads',
+        String(Number(sessionStorage.getItem('folder-reads')) + 1),
+      );
+      if (sessionStorage.getItem('block-folder') === 'yes') throw new Error('Sin acceso');
+      return values.call(this);
+    };
+    prototype.requestPermission = async () => {
+      sessionStorage.setItem(
+        'permission-requests',
+        String(Number(sessionStorage.getItem('permission-requests')) + 1),
+      );
+      return sessionStorage.getItem('block-folder') === 'yes' ? 'denied' : 'granted';
+    };
+    prototype.queryPermission = async () => {
+      throw new Error('La apertura no debe consultar permisos');
+    };
+    Object.defineProperty(window, 'showDirectoryPicker', {
+      configurable: true,
+      value: async () =>
+        (await navigator.storage.getDirectory()).getDirectoryHandle('Guardadas', { create: true }),
+    });
+  });
+  await page.goto('/');
+  async function write(bytes: number[]) {
+    await page.evaluate(async (bytes) => {
+      const folder = await (
+        await navigator.storage.getDirectory()
+      ).getDirectoryHandle('Guardadas', { create: true });
+      const writer = await (
+        await folder.getFileHandle('Sonata.pdf', { create: true })
+      ).createWritable();
+      await writer.write(new Uint8Array(bytes));
+      await writer.close();
+    }, bytes);
+  }
+  await write([...(await pdf(['Guardada', 'Segunda página']))]);
+  await page.locator('.heading-actions [data-action="import"]').click();
+  await page.locator('#pick-folder').click();
+  await expect(page.locator('.score-card')).toHaveCount(1);
+  await page.locator('[data-favorite]').click();
+  await expect(page.locator('[data-favorite]')).toHaveClass(/is-favorite/);
+  await page.getByRole('button', { name: 'Abrir Sonata', exact: true }).click();
+  await expect(page.locator('#page-total')).toHaveText('/ 2');
+  await page.locator('#next-page').click();
+  await expect(page.locator('#page-input')).toHaveValue('2');
+  await page.locator('#close-reader').click();
+  // The original changes while the persisted import remains readable.
+  await write([...(await pdf(['Versión actualizada']))]);
+  await page.evaluate(() => sessionStorage.setItem('block-folder', 'yes'));
+  await page.reload();
+  await expect(page.locator('.score-card')).toHaveCount(1);
+  await expect(page.locator('[data-favorite]')).toHaveClass(/is-favorite/);
+  await expect(page.locator('.folder-warning')).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('permission-requests'))).toBe('0');
+  expect(await page.evaluate(() => sessionStorage.getItem('folder-reads'))).toBe('0');
+  await page.getByRole('button', { name: 'Abrir Sonata', exact: true }).click();
+  await expect(page.locator('#page-total')).toHaveText('/ 2');
+  await expect(page.locator('#page-input')).toHaveValue('2');
+  await page.locator('#close-reader').click();
+  await page.locator('#refresh-folders').click();
+  await expect(page.locator('.folder-warning')).toHaveCount(1);
+  await expect(page.locator('.score-card')).toHaveCount(1);
+  expect(await page.evaluate(() => sessionStorage.getItem('permission-requests'))).toBe('1');
+  expect(await page.evaluate(() => sessionStorage.getItem('folder-reads'))).toBe('0');
+  await page.evaluate(() => sessionStorage.setItem('block-folder', 'no'));
+  await page.locator('#refresh-folders').click();
+  await expect(page.locator('#refresh-folders')).toBeEnabled();
+  await expect(page.locator('.folder-warning')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Abrir Sonata', exact: true }).click();
+  await expect(page.locator('#page-total')).toHaveText('/ 1');
+  await expect(page.locator('#page-input')).toHaveValue('1');
+  await page.locator('#close-reader').click();
+  await page.evaluate(async () => {
+    const folder = await (await navigator.storage.getDirectory()).getDirectoryHandle('Guardadas');
+    await folder.removeEntry('Sonata.pdf');
+    sessionStorage.setItem('block-folder', 'yes');
+    await navigator.serviceWorker.ready;
+  });
+  // Navigate once after activation so the cached app shell controls this page.
+  await page.reload();
+  await expect(page.locator('.score-card')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('.score-card')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Abrir Sonata', exact: true }).click();
+  await expect(page.locator('#page-total')).toHaveText('/ 1');
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('permission-requests'))).toBe('0');
+  expect(await page.evaluate(() => sessionStorage.getItem('folder-reads'))).toBe('0');
+  await context.setOffline(false);
 });
 
 test('navega entre PDFs desde el lector respetando filtros, orden y progreso', async ({ page }) => {

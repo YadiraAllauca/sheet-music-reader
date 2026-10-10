@@ -11,12 +11,13 @@ Built with **TypeScript · Vite · PDF.js · IndexedDB · Progressive Web App AP
 ## Features
 
 - **Local library:** open individual PDFs or link multiple folders, including subfolders, on supported browsers.
-- **Manual refresh:** load linked folders at startup, then check for added, changed, or removed files when you choose.
+- **Persistent imports:** keep linked-folder PDFs in IndexedDB and reopen them without renewed folder permission, including offline.
+- **Manual refresh:** request folder access only when importing or refreshing; reconcile added, changed, or removed PDFs while preserving the last import if an update fails.
 - **Fast discovery:** search filenames and paths without case or accent sensitivity; use favorites, recent files, and grid or list views.
 - **Real previews:** first-page thumbnails load near the viewport, one PDF at a time, with a bounded in-memory cache.
 - **Focused reading:** zoom, page navigation, text search, previous/next PDFs with touch swipes, a dark reader background, and collapsible controls.
 - **Two scores at once:** independent scrolling, zoom, and page controls; side-by-side on larger screens and stacked on phones.
-- **Installable and offline-capable:** cache the application shell and bundled PDF.js resources after the first online visit.
+- **Installable and offline-capable:** cache the application shell and bundled PDF.js resources after the first online visit; imported folder PDFs remain available locally.
 
 The interface is currently in Spanish. Documentation is in English; the [user guide](docs/user-guide.md) maps instructions to the actual button labels.
 
@@ -60,21 +61,21 @@ The browser tests run against the production build. See the [development guide](
 
 PDF contents remain on your device. Atril requests read-only folder access and does not upload, edit, or delete the original files.
 
-| Data                                                    | Storage              | Lifetime                                               |
-| ------------------------------------------------------- | -------------------- | ------------------------------------------------------ |
-| Linked folder handles and saved reading metadata        | IndexedDB            | Across sessions, until removed or site data is cleared |
-| Individually selected files and current library entries | Memory               | Current session                                        |
-| Thumbnail cache                                         | Memory               | Current session; up to 48 cached previews              |
-| Library layout and desktop sidebar preference           | localStorage         | Across sessions                                        |
-| Application shell and PDF.js assets                     | Service worker cache | Available offline after caching                        |
+| Data                                                       | Storage              | Lifetime                                               |
+| ---------------------------------------------------------- | -------------------- | ------------------------------------------------------ |
+| Linked folder handles, imported PDFs, and reading metadata | IndexedDB            | Across sessions, until removed or site data is cleared |
+| Individually selected files                                | Memory               | Current session                                        |
+| Thumbnail cache                                            | Memory               | Current session; up to 48 cached previews              |
+| Library layout and desktop sidebar preference              | localStorage         | Across sessions                                        |
+| Application shell and PDF.js assets                        | Service worker cache | Available offline after caching                        |
 
-Favorites and reading progress persist for linked PDFs. Individually selected PDFs must be selected again after a reload. Access permissions may need to be renewed. [Storage details and limitations →](docs/architecture.md)
+Linked-folder PDF copies, favorites, and reading progress persist. Opening Atril restores the last import without accessing the original folders. **Actualizar carpetas** requests read access if necessary and updates the saved copies. Individually selected PDFs must be selected again after a reload. Imported PDFs use device storage; browser eviction or clearing site data can remove them. [Storage details and limitations →](docs/architecture.md)
 
 ## Browser support
 
 Reading selected PDFs works without persistent folder linking. That linking depends on `showDirectoryPicker`, a browser API with [limited availability](https://developer.mozilla.org/en-US/docs/Web/API/Window/showDirectoryPicker), and requires HTTPS or a trusted local development context.
 
-If the API is unavailable, Atril offers session-only folder selection or individual PDFs. Installing the PWA does not remove these browser restrictions. Offline reading requires cached app resources and continued access to local files; cloud-backed document providers may require a connection.
+If the API is unavailable, Atril offers session-only folder selection or individual PDFs. Installing the PWA does not remove these browser restrictions. Offline reading of imported folder PDFs requires cached app resources and saved copies, with no folder permission needed. Importing or refreshing files from cloud-backed providers may require a connection.
 
 ## Deploy
 

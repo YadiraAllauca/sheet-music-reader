@@ -1,27 +1,42 @@
 import { describeFile, type Score } from './library';
 import {
   getProgress,
+  getCachedDocument,
+  getCachedDocumentIds,
+  cacheFolderSnapshot,
   saveProgress,
   type LinkedEntry,
-  type LocalFileHandle,
 } from './linked-folders';
 
-// PDFs are never persisted: session files or handles to the original files only.
+// Linked PDFs are read from the last committed import, never from a live handle.
 const scores = new Map<string, Score>();
-const files = new Map<string, File | LocalFileHandle>();
+const files = new Map<string, File>();
 const hidden = new Set<string>();
 
+export async function restoreLibrary() {
+  const available = new Set(await getCachedDocumentIds());
+  for (const score of await getProgress()) {
+    if (available.has(score.id)) scores.set(score.id, score);
+  }
+}
 export async function getScores() {
   return [...scores.values()]
     .filter((score) => !hidden.has(score.id))
     .map((score) => ({ ...score }));
 }
 export async function getFile(id: string) {
-  const file = files.get(id);
-  return file instanceof File ? file : file?.getFile();
+  if (!id.startsWith('linked:')) return files.get(id);
+  const score = scores.get(id);
+  if (!score) return;
+  const cached = await getCachedDocument(id);
+  if (cached)
+    return new File([cached.bytes], score.path.split('/').pop()!, {
+      type: 'application/pdf',
+      lastModified: score.modified,
+    });
 }
 export async function updateScore(score: Score) {
-  if (!files.has(score.id)) return;
+  if (!scores.has(score.id)) return;
   if (score.id.startsWith('linked:')) await saveProgress(score);
   scores.set(score.id, { ...score });
 }
@@ -54,6 +69,23 @@ export async function saveFile(file: File, path?: string) {
 export async function applyFolderSnapshot(folderId: string, entries: LinkedEntry[]) {
   const prefix = `linked:${folderId}/`;
   const saved = new Map((await getProgress()).map((score) => [score.id, score]));
+  const cached = new Set(await getCachedDocumentIds());
+  const nextScores: Score[] = [];
+  const documents: { id: string; bytes: ArrayBuffer }[] = [];
+  // Read changed bytes before starting the transaction. A failed read or quota
+  // error leaves the previous import intact, including deleted entries.
+  for (const entry of entries) {
+    const previous = saved.get(entry.score.id);
+    nextScores.push(preserveProgress(entry.score, scores.get(entry.score.id) || previous));
+    if (
+      !cached.has(entry.score.id) ||
+      previous?.size !== entry.score.size ||
+      previous?.modified !== entry.score.modified
+    ) {
+      documents.push({ id: entry.score.id, bytes: await entry.file.arrayBuffer() });
+    }
+  }
+  await cacheFolderSnapshot(folderId, nextScores, documents);
   const present = new Set(entries.map(({ score }) => score.id));
   for (const id of scores.keys()) {
     if (id.startsWith(prefix) && !present.has(id)) {
@@ -62,13 +94,8 @@ export async function applyFolderSnapshot(folderId: string, entries: LinkedEntry
       hidden.delete(id);
     }
   }
-  for (const entry of entries) {
-    const score = preserveProgress(
-      entry.score,
-      scores.get(entry.score.id) || saved.get(entry.score.id),
-    );
+  for (const score of nextScores) {
     scores.set(score.id, score);
-    files.set(score.id, entry.handle);
   }
 }
 export function forgetFolder(folderId: string) {

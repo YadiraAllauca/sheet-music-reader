@@ -8,20 +8,22 @@ Atril's interface is currently in Spanish. The labels below match the applicatio
 
 Choose **Abrir PDF** to select files from your device. One selected file opens directly; multiple files appear in the library. These selections last for the current session and must be made again after reloading.
 
-For a reusable library, choose **Vincular carpeta → Vincular otra carpeta** and grant read access. Repeat to link additional folders. Atril preserves subfolder paths and can link an empty folder. It remembers folder handles rather than copying PDFs.
+For a reusable library, choose **Vincular carpeta → Vincular otra carpeta** and grant read access. Repeat to link additional folders. Atril preserves subfolder paths and can link an empty folder. It saves local PDF copies, folder references, favorites, and reading progress. PDF copies stay on this device and are not uploaded.
 
 On browsers without persistent folder access, folder selection is available only for the session. Selecting individual PDFs remains an alternative.
 
 ## Refresh and manage folders
 
-Linked folders load when Atril starts. To review subsequent file changes, choose **Actualizar carpetas**. There is no periodic refresh or background monitoring.
+When Atril starts, it restores the last imported PDFs without accessing their original folders or asking for permission. To review file changes, choose **Actualizar carpetas** and grant access if the browser requests it. There is no periodic refresh or background monitoring.
+
+If you used an earlier version, refresh each linked folder once to save its first PDF copies.
 
 Use the **⋯** menu beside a linked folder in the sidebar:
 
 - **Restablecer acceso:** renew permission when the browser reports a pending or unavailable connection.
-- **Desvincular:** remove the folder link and its saved reading metadata. Original documents remain untouched.
+- **Desvincular:** remove the folder link, its saved PDF copies, and reading metadata. Original documents remain untouched.
 
-A warning marker identifies folders with access problems. A failed scan keeps the existing entries rather than applying an incomplete snapshot.
+A warning marker identifies folders whose last update failed or lacked permission. Canceling permission, a failed read, or insufficient storage leaves the previous import readable. A warning does not prevent reading saved PDFs.
 
 File changes are detected by size and modification time. A detected change resets the saved page to page 1. If a PDF already open in the reader changes on disk, reopen it to display the new version.
 
@@ -31,7 +33,7 @@ Search any part of a filename or folder path, including punctuation. Matching ig
 
 Use **Favoritas**, **Recientes**, folder navigation, sorting, and grid/list views to narrow the library. The panel button at the top left hides or shows the sidebar. Desktop visibility is remembered; on phones, selecting a folder or section closes the sidebar.
 
-First-page previews load as cards approach the viewport. A sheet-shaped placeholder appears while loading or if a PDF cannot be read. Removing a linked score from the library hides it for the current session; it can return after reloading if it still exists in the folder.
+First-page previews load as cards approach the viewport. A sheet-shaped placeholder appears while loading or if a PDF cannot be read. Removing a linked score from the library hides it for the current session; it returns after reloading if its copy is still imported. Refreshing removes its saved copy if it was deleted from the original folder.
 
 ## Read a PDF
 
@@ -73,15 +75,17 @@ Visit the deployed HTTPS site online once and wait for the offline-ready notific
 - **Android or desktop:** use **Instalar Atril** or the browser's app installation command when available.
 - **iPhone/iPad:** in Safari, use Share → Add to Home Screen.
 
-The cached application can then open local PDFs without an internet connection. Individually selected PDFs still require reselection after reloading. Linked folders require valid permissions. A file provider backed by cloud storage may need a connection even when the application itself is cached.
+The cached application can then open local PDFs without an internet connection. Individually selected PDFs still require reselection after reloading. Imported folder PDFs can be read without permission to the original folder. Permission is needed only to import or refresh. Cloud-backed providers may need a connection during those operations.
+
+Saved PDFs use device storage. Clearing site data or browser storage eviction removes the saved library; import the folders again to restore it. Installing the app does not guarantee permanent folder permissions or protect data from deletion.
 
 ## Troubleshooting
 
-| Symptom                                | Action                                                                                    |
-| -------------------------------------- | ----------------------------------------------------------------------------------------- |
-| A linked folder has a warning          | Open its ⋯ menu and choose **Restablecer acceso**. If needed, link it again.              |
-| New or deleted files are not reflected | Choose **Actualizar carpetas**.                                                           |
-| The reader shows an older version      | Refresh the library, then reopen the PDF.                                                 |
-| Text search finds no matches in a scan | Use a PDF with embedded text; OCR is outside the current scope.                           |
-| A PDF will not open                    | Check that it is a valid, unencrypted PDF and that the original file is still accessible. |
-| Folder linking is unavailable          | Use session-only folder selection or individual files in that browser.                    |
+| Symptom                                | Action                                                                                       |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| A linked folder has a warning          | Open its ⋯ menu and choose **Restablecer acceso**. If needed, link it again.                 |
+| New or deleted files are not reflected | Choose **Actualizar carpetas**.                                                              |
+| The reader shows an older version      | Refresh the library, then reopen the PDF.                                                    |
+| Text search finds no matches in a scan | Use a PDF with embedded text; OCR is outside the current scope.                              |
+| A PDF will not open                    | Check that it is a valid, unencrypted PDF. Refresh or reimport if its saved copy is missing. |
+| Folder linking is unavailable          | Use session-only folder selection or individual files in that browser.                       |

@@ -85,6 +85,7 @@ import {
   getFile,
   getScores,
   removeScore,
+  restoreLibrary,
   saveFile,
   updateScore,
 } from './storage';
@@ -155,8 +156,8 @@ $('#app').innerHTML = `
       <footer class="library-footer"><span>${icon('lock-keyhole')} Sin cuentas. Sin nube. A tu ritmo.</span><button class="text-button" id="help">Cómo funciona ${icon('arrow-up-right')}</button></footer>
     </section>
   </main>
-  <dialog id="import-dialog" class="dialog"><form method="dialog"><button class="icon-button dialog-close" aria-label="Cerrar">${icon('x')}</button></form><span class="dialog-icon">${icon('folder-plus')}</span><h2>Abre desde tu dispositivo</h2><p>Vincula una o varias carpetas de tu dispositivo. Recordaremos el acceso y cargaremos sus PDFs al abrir la app. Para revisar cambios después, pulsa Actualizar carpetas, sin guardar copias.</p><button class="button primary wide" id="pick-folder">${icon('folder-open')} Vincular otra carpeta</button><button class="button secondary wide" id="pick-files">${icon('files')} Seleccionar archivos PDF</button><small>El navegador puede pedir permiso de nuevo. Si no admite carpetas vinculadas, podrás elegir PDFs para esta sesión.</small></dialog>
-  <dialog id="help-dialog" class="dialog"><form method="dialog"><button class="icon-button dialog-close" aria-label="Cerrar">${icon('x')}</button></form><span class="dialog-icon">${icon('music-2')}</span><h2>Listo para tocar</h2><ol><li>Vincula tus carpetas o abre un PDF desde tu dispositivo.</li><li>Busca por cualquier parte del nombre o de la ruta, con o sin tildes.</li><li>Abre una partitura. Usa la lupa del lector para cambiar de PDF o buscar texto y saltar a una página.</li></ol><p>Para instalarla, usa «Instalar app» en el menú del navegador. En iPhone: Safari → Compartir → Añadir a pantalla de inicio.</p><small>La primera apertura requiere conexión. Las siguientes pueden ser sin internet. Las carpetas vinculadas, favoritos y progreso se recuerdan sin copiar los PDFs. Pulsa Actualizar carpetas para revisar archivos nuevos, modificados o eliminados. Si se pierde el permiso, pulsa Restablecer acceso. Los PDFs elegidos sueltos duran solo esta sesión.</small></dialog>
+  <dialog id="import-dialog" class="dialog"><form method="dialog"><button class="icon-button dialog-close" aria-label="Cerrar">${icon('x')}</button></form><span class="dialog-icon">${icon('folder-plus')}</span><h2>Abre desde tu dispositivo</h2><p>Importa una o varias carpetas de tu dispositivo. Guardaremos sus PDFs en esta app para leerlos sin volver a dar acceso. Pulsa Actualizar carpetas para sincronizar los cambios; el navegador puede pedir permiso en ese momento.</p><button class="button primary wide" id="pick-folder">${icon('folder-open')} Vincular otra carpeta</button><button class="button secondary wide" id="pick-files">${icon('files')} Seleccionar archivos PDF</button><small>Las copias ocupan espacio en este dispositivo y no se suben a internet. Si el navegador no admite carpetas vinculadas, podrás elegir PDFs para esta sesión.</small></dialog>
+  <dialog id="help-dialog" class="dialog"><form method="dialog"><button class="icon-button dialog-close" aria-label="Cerrar">${icon('x')}</button></form><span class="dialog-icon">${icon('music-2')}</span><h2>Listo para tocar</h2><ol><li>Vincula tus carpetas o abre un PDF desde tu dispositivo.</li><li>Busca por cualquier parte del nombre o de la ruta, con o sin tildes.</li><li>Abre una partitura. Usa la lupa del lector para cambiar de PDF o buscar texto y saltar a una página.</li></ol><p>Para instalarla, usa «Instalar app» en el menú del navegador. En iPhone: Safari → Compartir → Añadir a pantalla de inicio.</p><small>La primera apertura requiere conexión. Las siguientes pueden ser sin internet. Los PDFs de carpetas vinculadas, favoritos y progreso se guardan en este dispositivo. Al abrir la app no se accede a las carpetas. Pulsa Actualizar carpetas para revisar archivos nuevos, modificados o eliminados y autoriza el acceso si se solicita. Los PDFs elegidos sueltos duran solo esta sesión.</small></dialog>
   <input type="file" id="folder-input" webkitdirectory multiple hidden />
   <input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden />
   <dialog id="delete-dialog" class="dialog"><h2>¿Quitar esta partitura?</h2><p>Se quitará de esta sesión. El archivo original seguirá en tu dispositivo.</p><div class="dialog-actions"><button class="button secondary" id="cancel-delete">Cancelar</button><button class="button danger" id="confirm-delete">Quitar partitura</button></div></dialog>
@@ -279,7 +280,7 @@ function refresh() {
   if (!visible.length) {
     $('#score-list').innerHTML = scores.length
       ? `<div class="empty-search">${icon('search')}<h2>No encontramos partituras</h2><p>Prueba otro nombre o revisa una carpeta diferente.</p></div>`
-      : `<div class="empty-state"><div class="sheet-art"><span class="art-note">♪</span><div class="paper"><span>Andante</span><div class="staff">𝄞 <span>♩ ♫ ♩</span></div><div class="staff">𝄞 <span>♫ ♩ ♬</span></div><div class="staff">𝄞 <span>♩ ♫ ♩</span></div></div><span class="art-folder">${icon('folder-open')}</span></div><span class="eyebrow">TU PRIMERA PARTITURA TE ESPERA</span><h2>Dale un lugar a tu música</h2><p>Abre un PDF directamente desde tu dispositivo.<br>Vincula tus carpetas y pulsa Actualizar carpetas para ver los cambios.</p><button class="button primary" data-action="open-file">${icon('folder-open')} Abrir PDF</button><span class="empty-footnote">Sin subir archivos · Sin guardar copias</span></div><div class="feature-row"><div>${icon('folders')}<strong>El orden que ya conoces</strong><p>Conserva tus carpetas y subcarpetas.</p></div><div>${icon('search')}<strong>Una búsqueda, tu partitura</strong><p>Encuentra cualquier parte del nombre.</p></div><div>${icon('book-open')}<strong>Que la música siga</strong><p>Busca y cambia de PDF desde el lector.</p></div></div>`;
+      : `<div class="empty-state"><div class="sheet-art"><span class="art-note">♪</span><div class="paper"><span>Andante</span><div class="staff">𝄞 <span>♩ ♫ ♩</span></div><div class="staff">𝄞 <span>♫ ♩ ♬</span></div><div class="staff">𝄞 <span>♩ ♫ ♩</span></div></div><span class="art-folder">${icon('folder-open')}</span></div><span class="eyebrow">TU PRIMERA PARTITURA TE ESPERA</span><h2>Dale un lugar a tu música</h2><p>Abre un PDF directamente desde tu dispositivo.<br>Vincula tus carpetas y pulsa Actualizar carpetas para ver los cambios.</p><button class="button primary" data-action="open-file">${icon('folder-open')} Abrir PDF</button><span class="empty-footnote">Tu biblioteca guardada en este dispositivo</span></div><div class="feature-row"><div>${icon('folders')}<strong>El orden que ya conoces</strong><p>Conserva tus carpetas y subcarpetas.</p></div><div>${icon('search')}<strong>Una búsqueda, tu partitura</strong><p>Encuentra cualquier parte del nombre.</p></div><div>${icon('book-open')}<strong>Que la música siga</strong><p>Busca y cambia de PDF desde el lector.</p></div></div>`;
   } else {
     $('#score-list').innerHTML = visible
       .map(
@@ -344,25 +345,37 @@ async function selectFiles(
   if (openSingle && selectedCount === 1 && selectedId) await openScore(selectedId);
 }
 
-async function syncFolders() {
+async function syncFolders(folders = linkedFolders) {
   if (syncing || selecting) return;
   syncing = true;
   $<HTMLButtonElement>('#refresh-folders').disabled = true;
   $('#refresh-folders span').textContent = 'Actualizando…';
+  // Invoke every permission request in the button's user gesture, before awaiting.
+  // Opening the app never requests access or scans the original folders.
+  const permissions = folders.map((linked) =>
+    linked.handle.requestPermission({ mode: 'read' }).catch(() => 'denied' as const),
+  );
   try {
-    for (const linked of linkedFolders) {
+    for (const [index, linked] of folders.entries()) {
       try {
-        if ((await linked.handle.queryPermission({ mode: 'read' })) !== 'granted') {
-          folderProblems.set(linked.id, 'Permiso pendiente');
+        if ((await permissions[index]) !== 'granted') {
+          folderProblems.set(linked.id, 'Actualización pendiente: se necesita permiso');
           continue;
         }
         const entries = await scanFolder(linked);
         await applyFolderSnapshot(linked.id, entries);
         folderProblems.delete(linked.id);
-      } catch {
-        folderProblems.set(linked.id, 'No se pudo leer la carpeta');
+      } catch (error) {
+        folderProblems.set(
+          linked.id,
+          (error as Error).name === 'QuotaExceededError'
+            ? 'Sin espacio para actualizar. Se conserva la copia anterior.'
+            : 'No se pudo actualizar. Se conserva la copia anterior.',
+        );
       }
     }
+    if (folderProblems.size)
+      toast('Algunas carpetas no se actualizaron. Puedes seguir leyendo las copias guardadas.');
     scores = await getScores();
     if (!$('#reader-search-panel').hidden && searchMode === 'library') void runReaderSearch();
   } finally {
@@ -386,11 +399,12 @@ $('#pick-folder').onclick = async () => {
   }
   try {
     const handle = await picker.call(window, { mode: 'read' });
-    await linkFolder(handle);
+    const linked = await linkFolder(handle);
     linkedFolders = await getLinkedFolders();
     ($('#import-dialog') as HTMLDialogElement).close();
-    await syncFolders();
-    toast('Carpeta vinculada. Pulsa Actualizar carpetas cuando cambien sus archivos.');
+    await syncFolders([linked]);
+    if (!folderProblems.has(linked.id))
+      toast('Carpeta importada. Pulsa Actualizar carpetas cuando cambien sus archivos.');
   } catch (error) {
     if ((error as Error).name !== 'AbortError')
       toast('No se pudo vincular la carpeta. Revisa el permiso y vuelve a intentar.');
@@ -452,7 +466,9 @@ document.addEventListener('click', (event) => {
       void linked.handle
         .requestPermission({ mode: 'read' })
         .then((permission) =>
-          permission === 'granted' ? syncFolders() : toast('No se concedió acceso a la carpeta.'),
+          permission === 'granted'
+            ? syncFolders([linked])
+            : toast('No se concedió acceso a la carpeta.'),
         )
         .catch(() => toast('No se pudo restablecer el acceso. Vuelve a vincular la carpeta.'));
   }
@@ -852,12 +868,11 @@ registerSW({
     toast('No se pudo preparar el modo sin conexión. Vuelve a abrir Atril con internet.'),
 });
 
-getScores()
-  .then(async (saved) => {
-    scores = saved;
+restoreLibrary()
+  .then(async () => {
+    scores = await getScores();
     linkedFolders = await getLinkedFolders();
     refresh();
-    await syncFolders();
   })
   .catch(() => {
     refresh();

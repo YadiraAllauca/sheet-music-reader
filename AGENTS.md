@@ -47,4 +47,4 @@ Use concise, imperative subjects, for example `Add score upload validation`. Kee
 
 Never commit credentials, local configuration, or private scores. Keep `.gitignore` aligned with generated and local files.
 
-Preserve read-only filesystem access. PDF bytes and thumbnails must not be persisted or uploaded. IndexedDB holds linked folder references and reading metadata; session-only files remain in memory. See [architecture](docs/architecture.md) for storage boundaries and [deployment](docs/deployment.md) for Vercel setup.
+Preserve read-only filesystem access. Never upload PDF bytes or thumbnails. IndexedDB holds linked folder references, imported PDF copies, and reading metadata; individually selected files remain in memory. Opening the app restores saved imports without filesystem access; only user-triggered imports/refreshes read original folders. See [architecture](docs/architecture.md) for storage boundaries and [deployment](docs/deployment.md) for Vercel setup.

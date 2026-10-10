@@ -29,14 +29,14 @@ Once the repository is connected, pushes and merges to `main` create production 
 - Confirm that the library loads and a local PDF opens.
 - On a compatible browser, link a folder and refresh it after changing a local file.
 - Check the first-page previews, reader search, split view, and mobile layout.
-- Wait for the offline-ready notification, then verify the app can reopen and read selected local files offline.
+- Wait for the offline-ready notification, then verify that imported folder PDFs reopen offline after a reload without folder access.
 - Check that PDF.js resources load from the site's `/pdfjs/` path and that the service worker installs successfully.
 
 Production builds have been exercised locally with browser tests. Account-level Vercel configuration and a live deployed URL must be verified in the actual Vercel project.
 
 ## PWA updates and local data
 
-The service worker uses the plugin's prompt update mode. An already-open or installed app may continue using its cached version; the app currently has no dedicated update prompt UI. Reopen the app after deployment and verify that the new version is active. Clearing site data also removes folder references, reading progress, preferences, and offline resources, so it should not be a routine update procedure.
+The service worker uses the plugin's prompt update mode. An already-open or installed app may continue using its cached version; the app currently has no dedicated update prompt UI. Reopen the app after deployment and verify that the new version is active. Clearing site data also removes imported PDFs, folder references, reading progress, preferences, and offline resources, so it should not be a routine update procedure.
 
 Folder permissions and browser storage belong to an origin. Preview URLs, a production URL, and a custom domain can therefore have separate local libraries and permissions. Use a stable production origin for normal use.
 
