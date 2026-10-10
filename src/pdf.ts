@@ -6,6 +6,7 @@ import {
 } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { normalize } from './library';
+import { pdfResolution } from './pdf-resolution';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -47,9 +48,14 @@ export class PdfReader {
     const base = page.getViewport({ scale: 1 });
     const scale = (Math.min(width, 1100) / base.width) * zoom;
     const viewport = page.getViewport({ scale });
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.floor(viewport.width * ratio);
-    canvas.height = Math.floor(viewport.height * ratio);
+    const output = pdfResolution(
+      viewport.width,
+      viewport.height,
+      (window.devicePixelRatio || 1) * (window.visualViewport?.scale || 1),
+    );
+    const ratio = output.ratio;
+    canvas.width = output.width;
+    canvas.height = output.height;
     canvas.style.width = `${viewport.width}px`;
     canvas.style.height = `${viewport.height}px`;
     this.task = page.render({

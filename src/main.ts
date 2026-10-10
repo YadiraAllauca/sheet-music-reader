@@ -909,13 +909,15 @@ async function runReaderSearch() {
 }
 
 let resizeTimer: ReturnType<typeof setTimeout>;
-window.addEventListener('resize', () => {
+function scheduleReaderResize() {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     void drawPage();
     void splitReader.render();
   }, 150);
-});
+}
+window.addEventListener('resize', scheduleReaderResize);
+window.visualViewport?.addEventListener('resize', scheduleReaderResize);
 document.addEventListener('keydown', (event) => {
   const typing = (event.target as HTMLElement).matches('input, textarea, select');
   if (event.key === 'Escape' && current && $('#reader').classList.contains('focus-mode')) {

@@ -762,3 +762,65 @@ test('recuerda subcarpetas, ubicación y lista sin cargar todas las partituras a
     fullPage: true,
   });
 });
+
+test('renderiza partituras con densidad nativa y renueva la resolución al ampliar', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/');
+  const document = await PDFDocument.create();
+  const sheet = document.addPage([595, 842]);
+  const font = await document.embedFont(StandardFonts.Helvetica);
+  sheet.drawText('Thin staff lines', { x: 60, y: 750, size: 18, font });
+  for (let line = 0; line < 5; line++) {
+    sheet.drawLine({
+      start: { x: 60, y: 700 + line * 7 },
+      end: { x: 535, y: 700 + line * 7 },
+      thickness: 0.2,
+    });
+  }
+  await page.locator('#file-input').setInputFiles({
+    name: 'Nitidez.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from(await document.save()),
+  });
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  async function expectResolution(selector: string) {
+    await expect
+      .poll(async () =>
+        page.locator(selector).evaluate((element) => {
+          const canvas = element as HTMLCanvasElement;
+          const expected = devicePixelRatio * (visualViewport?.scale || 1);
+          return Math.abs(canvas.width / parseFloat(canvas.style.width) - expected);
+        }),
+      )
+      .toBeLessThan(0.02);
+  }
+  await expectResolution('#pdf-canvas');
+  const width = await page
+    .locator('#pdf-canvas')
+    .evaluate((canvas) => (canvas as HTMLCanvasElement).width);
+  await page.locator('#zoom-in').click();
+  await expect(page.locator('#zoom-label')).toHaveText('125%');
+  await expect
+    .poll(async () =>
+      page.locator('#pdf-canvas').evaluate((canvas) => (canvas as HTMLCanvasElement).width),
+    )
+    .toBeGreaterThan(width);
+  await expectResolution('#pdf-canvas');
+  await page.getByRole('button', { name: 'Dividir y buscar', exact: true }).click();
+  await page.locator('[data-secondary-open]').click();
+  await expect(page.locator('#secondary-canvas')).toBeVisible();
+  await expectResolution('#secondary-canvas');
+  // Browser pinch zoom must trigger a new bitmap instead of magnifying old pixels.
+  if (page.viewportSize()!.width <= 650) {
+    const session = await context.newCDPSession(page);
+    await session.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1.5 });
+    await expect.poll(() => page.evaluate(() => visualViewport?.scale)).toBeCloseTo(1.5, 1);
+    await expectResolution('#pdf-canvas');
+    await expectResolution('#secondary-canvas');
+    await session.send('Emulation.setPageScaleFactor', { pageScaleFactor: 1 });
+    await session.detach();
+  }
+  await page.screenshot({ path: `/tmp/atril-pdf-resolution-${test.info().project.name}.png` });
+});
