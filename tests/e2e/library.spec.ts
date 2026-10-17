@@ -9,6 +9,117 @@ async function pdf(texts: string[]) {
   return Buffer.from(await document.save());
 }
 
+test('mantiene el buscador y el cierre visibles al bajar al último resultado', async ({ page }) => {
+  await page.goto('/');
+  const buffer = await pdf(['Partitura']);
+  await page.locator('#file-input').setInputFiles(
+    Array.from({ length: 24 }, (_, index) => ({
+      name: `Partitura ${String(index + 1).padStart(2, '0')}.pdf`,
+      mimeType: 'application/pdf',
+      buffer,
+    })),
+  );
+  await page.getByRole('button', { name: 'Abrir Partitura 01', exact: true }).click();
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await page.locator('#reader-search-toggle').click();
+  await page.locator('#reader-search').fill('Partitura');
+  const results = page.locator('#reader-results');
+  await expect(results.locator('.reader-result')).toHaveCount(24);
+  const close = page.locator('#close-search');
+  const initialClose = await close.boundingBox();
+  const initialQuery = await page.locator('#reader-search').boundingBox();
+  await results.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(results.locator('.reader-result').last()).toBeInViewport();
+  expect(await results.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await close.boundingBox()).toEqual(initialClose);
+  expect(await page.locator('#reader-search').boundingBox()).toEqual(initialQuery);
+  await close.click();
+  await expect(page.locator('#reader-search-panel')).toBeHidden();
+});
+
+test('lee varias páginas con desplazamiento vertical y conserva el progreso', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({
+    name: 'Continua.pdf',
+    mimeType: 'application/pdf',
+    buffer: await pdf(Array.from({ length: 8 }, (_, index) => `Hoja ${index + 1}`)),
+  });
+  const pages = page.locator('#canvas-scroll .pdf-page');
+  await expect(pages).toHaveCount(8);
+  const moveTo = async (number: number) => {
+    await pages.nth(number - 1).evaluate((canvas) => {
+      const scroll = canvas.closest('.canvas-scroll')!;
+      scroll.scrollTop +=
+        canvas.getBoundingClientRect().top -
+        scroll.getBoundingClientRect().top -
+        parseFloat(getComputedStyle(scroll).paddingTop);
+    });
+    await expect(page.locator('#page-input')).toHaveValue(String(number));
+    await expect
+      .poll(() =>
+        pages.nth(number - 1).evaluate((element) => {
+          const canvas = element as HTMLCanvasElement;
+          return (
+            canvas.width > 0 && canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data[3] === 255
+          );
+        }),
+      )
+      .toBe(true);
+  };
+  await moveTo(4);
+  await page.locator('#zoom-in').click();
+  await expect(page.locator('#zoom-label')).toHaveText('125%');
+  await expect(page.locator('#page-input')).toHaveValue('4');
+  await moveTo(8);
+  await expect
+    .poll(() => pages.first().evaluate((canvas) => (canvas as HTMLCanvasElement).width))
+    .toBe(0);
+  await moveTo(2);
+  await page.screenshot({ path: `/tmp/atril-continuous-${test.info().project.name}.png` });
+  await page.locator('#close-reader').click();
+  await page.getByRole('button', { name: 'Abrir Continua', exact: true }).click();
+  await expect(pages).toHaveCount(8);
+  await expect
+    .poll(() => pages.nth(1).evaluate((canvas) => (canvas as HTMLCanvasElement).width))
+    .toBeGreaterThan(0);
+  await expect(page.locator('#page-input')).toHaveValue('2');
+  await page.locator('#page-input').fill('6');
+  await page.locator('#page-input').press('Tab');
+  await expect(page.locator('#page-input')).toHaveValue('6');
+  await expect
+    .poll(() =>
+      pages
+        .nth(5)
+        .evaluate((canvas) =>
+          Math.abs(
+            canvas.getBoundingClientRect().top -
+              canvas.closest('.canvas-scroll')!.getBoundingClientRect().top -
+              parseFloat(getComputedStyle(canvas.closest('.canvas-scroll')!).paddingTop),
+          ),
+        ),
+    )
+    .toBeLessThan(2);
+  await page.getByRole('button', { name: 'Dividir y buscar', exact: true }).click();
+  await page.locator('#secondary-query').fill('Continua');
+  await page.locator('[data-secondary-open]').click();
+  const secondaryPages = page.locator('#secondary-scroll .pdf-page');
+  await expect(secondaryPages).toHaveCount(8);
+  await secondaryPages.nth(2).evaluate((canvas) => {
+    const scroll = canvas.closest('.canvas-scroll')!;
+    scroll.scrollTop +=
+      canvas.getBoundingClientRect().top -
+      scroll.getBoundingClientRect().top -
+      parseFloat(getComputedStyle(scroll).paddingTop);
+  });
+  await expect(page.locator('#secondary-page')).toHaveValue('3');
+  await expect(page.locator('#page-input')).toHaveValue('6');
+  expect(errors).toEqual([]);
+});
+
 test('lee archivos de la sesión, busca dentro del lector y permite reabrirlos sin conexión', async ({
   page,
   context,
@@ -34,8 +145,9 @@ test('lee archivos de la sesión, busca dentro del lector y permite reabrirlos s
   await page.screenshot({ path: `/tmp/atril-reader-${test.info().project.name}.png` });
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
   await page.getByRole('button', { name: 'En este PDF', exact: true }).click();
-  await page.locator('#reader-search').fill('Andante');
-  await page.getByRole('button', { name: /Página 2/ }).click();
+  await page.locator('#pdf-find-query').fill('Andante');
+  await expect(page.locator('.pdf-find-count')).toHaveText('1 de 1');
+  await expect(page.locator('.pdf-match.active')).toHaveText('Andante');
   await expect(page.locator('#page-input')).toHaveValue('2');
   if (await page.locator('#reader-search-panel').isHidden())
     await page.locator('#reader-search-toggle').click();
@@ -65,6 +177,47 @@ test('lee archivos de la sesión, busca dentro del lector y permite reabrirlos s
   await expect(page.locator('#reader-title')).toHaveText('Vals');
   await expect(page.locator('#pdf-canvas')).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('busca términos en el PDF, recorre repeticiones y limpia los resaltados', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#file-input').setInputFiles({
+    name: 'Términos.pdf',
+    mimeType: 'application/pdf',
+    buffer: await pdf(['Sol sol SOL', 'Otro sol']),
+  });
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await page.keyboard.press('Control+f');
+  const query = page.locator('#pdf-find-query');
+  const count = page.locator('.pdf-find-count');
+  await query.fill('sol');
+  await expect(count).toHaveText('1 de 4');
+  await expect(page.locator('.pdf-match.active')).toHaveText('Sol');
+  await query.press('Enter');
+  await expect(count).toHaveText('2 de 4');
+  await expect(page.locator('.pdf-match.active')).toHaveText('sol');
+  await page.getByRole('button', { name: 'Coincidencia siguiente', exact: true }).click();
+  await page.getByRole('button', { name: 'Coincidencia siguiente', exact: true }).click();
+  await expect(count).toHaveText('4 de 4');
+  await expect(page.locator('#page-input')).toHaveValue('2');
+  await query.press('Enter');
+  await expect(count).toHaveText('1 de 4');
+  await expect(page.locator('#page-input')).toHaveValue('1');
+  await query.press('Shift+Enter');
+  await expect(count).toHaveText('4 de 4');
+  await page.locator('#zoom-in').click();
+  await expect(page.locator('.pdf-match.active')).toHaveText('sol');
+  await query.fill('no existe');
+  await expect(count).toHaveText('Sin coincidencias');
+  await expect(page.locator('.pdf-match')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Coincidencia siguiente', exact: true }),
+  ).toBeDisabled();
+  await query.fill('sol');
+  await expect(count).toHaveText('4 de 4');
+  await query.press('Escape');
+  await expect(page.locator('.pdf-findbar')).toBeHidden();
+  await expect(page.locator('.pdf-match')).toHaveCount(0);
 });
 
 test('preserva subcarpetas importadas y admite puntuación literal en la búsqueda', async ({

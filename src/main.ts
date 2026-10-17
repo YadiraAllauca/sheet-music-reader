@@ -115,6 +115,8 @@ import {
 } from './linked-folders';
 import { PdfReader } from './pdf';
 import { createSplitReader } from './split-reader';
+import { ContinuousReader } from './continuous-reader';
+import { createPdfFind } from './pdf-find';
 import { createThumbnails } from './thumbnails';
 import { attachFileSwipe } from './file-swipe';
 import { attachLongPressSelection } from './long-press-selection';
@@ -146,7 +148,6 @@ const readerSequence = new ReaderSequence();
 let page = 1;
 let zoom = 1;
 let opening = 0;
-let textSearch = 0;
 let searchMode = 'library';
 let selecting = false;
 let linkedFolders: LinkedFolder[] = [];
@@ -200,6 +201,25 @@ primaryPane.className = 'reader-pane primary-reader';
 primaryPane.setAttribute('aria-label', 'Primera partitura');
 $('.reader-body').prepend(primaryPane);
 primaryPane.append($('#canvas-scroll'), $('.reader-controls'));
+const continuousReader = new ContinuousReader(
+  reader,
+  $('#canvas-scroll'),
+  $('#pdf-canvas'),
+  (next) => {
+    page = next;
+    updatePageControls();
+    void remember().catch(() => toast('No se pudo guardar la última página.'));
+  },
+  () => toast('No se pudo mostrar esta página. Intenta abrir otra.'),
+);
+const pdfFind = createPdfFind({
+  pane: primaryPane,
+  reader,
+  view: continuousReader,
+  navigate: goToPage,
+  currentPage: () => page,
+  enabled: () => !$('#reader').hidden && reader.pages > 0,
+});
 $('#canvas-scroll').tabIndex = 0;
 $('#canvas-scroll').setAttribute('aria-label', 'Desplazamiento de la primera partitura');
 const splitReader = createSplitReader({
@@ -725,7 +745,8 @@ async function openScore(id: string, queue?: string[], entryKey?: string) {
   updateReaderQueueControls();
   $('#canvas-scroll').scrollTop = 0;
   const request = ++opening;
-  textSearch++;
+  pdfFind.close();
+  continuousReader.reset();
   current = score;
   page = score.lastPage;
   zoom = 1;
@@ -839,21 +860,26 @@ async function remember() {
   if (current?.id === updated.id) current = updated;
 }
 
-async function drawPage() {
-  if (!reader.pages || $('#reader').hidden) return;
-  const request = opening;
+function updatePageControls() {
   $<HTMLInputElement>('#page-input').value = String(page);
   $<HTMLInputElement>('#page-input').max = String(reader.pages);
   $('#page-total').textContent = `/ ${reader.pages}`;
   $<HTMLButtonElement>('#previous-page').disabled = page <= 1;
   $<HTMLButtonElement>('#next-page').disabled = page >= reader.pages;
   $('#zoom-label').textContent = `${Math.round(zoom * 100)}%`;
+}
+
+async function drawPage(navigate = false) {
+  if (!reader.pages || $('#reader').hidden) return;
+  const request = opening;
+  updatePageControls();
   try {
-    await reader.render(
+    $('#reader-status').hidden = true;
+    await continuousReader.render(
       page,
-      $('#pdf-canvas'),
       Math.max(100, $('#canvas-scroll').clientWidth - 40),
       zoom,
+      navigate,
     );
     if (request !== opening) return;
     $('#pdf-canvas').hidden = false;
@@ -866,8 +892,7 @@ async function drawPage() {
 async function goToPage(next: number) {
   if (!reader.pages || !Number.isFinite(next)) return;
   page = Math.min(reader.pages, Math.max(1, Math.floor(next)));
-  $('#canvas-scroll').scrollTop = 0;
-  await drawPage();
+  await drawPage(true);
   await remember().catch(() => toast('No se pudo guardar la última página.'));
 }
 $('#previous-page').onclick = () => void goToPage(page - 1);
@@ -910,7 +935,8 @@ $('#fullscreen').onclick = async () => {
 };
 $('#close-reader').onclick = async () => {
   opening++;
-  textSearch++;
+  pdfFind.close();
+  continuousReader.reset();
   current = undefined;
   $('#reader').classList.remove('focus-mode');
   await splitReader.close();
@@ -931,7 +957,7 @@ function toggleSearch(show: boolean) {
   if (show) {
     if (searchMode !== 'queue') $('#reader-search').focus();
     void runReaderSearch();
-  } else textSearch++;
+  }
   void drawPage();
 }
 $('#reader-search-toggle').onclick = () => {
@@ -946,20 +972,23 @@ $('#reader-queue-toggle').onclick = () => {
 };
 $('#close-search').onclick = () => toggleSearch(false);
 function setReaderMode(mode: string) {
+  if (mode === 'text') {
+    toggleSearch(false);
+    pdfFind.show();
+    return;
+  }
+  pdfFind.close();
   searchMode = mode;
   document
     .querySelectorAll<HTMLElement>('[data-mode]')
     .forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
   $('#reader-panel-title').textContent = mode === 'queue' ? 'Tu cola' : 'Encuentra tu música';
   $('#reader-query-field').hidden = mode === 'queue';
-  $<HTMLInputElement>('#reader-search').placeholder =
-    mode === 'text' ? 'Texto dentro de este PDF…' : 'Nombre o carpeta…';
+  $<HTMLInputElement>('#reader-search').placeholder = 'Nombre o carpeta…';
   $('#search-hint').textContent =
     mode === 'queue'
       ? 'Arrastra las líneas para ordenar. La × quita una partitura de la cola.'
-      : mode === 'text'
-        ? 'Busca texto y salta a la página. Los PDFs escaneados sin texto necesitan OCR.'
-        : 'Pulsa + para añadir a la cola. Abre las opciones para poner una partitura como siguiente.';
+      : 'Pulsa + para añadir a la cola. Abre las opciones para poner una partitura como siguiente.';
   void runReaderSearch();
 }
 document.querySelectorAll<HTMLElement>('[data-mode]').forEach((button) => {
@@ -967,12 +996,10 @@ document.querySelectorAll<HTMLElement>('[data-mode]').forEach((button) => {
 });
 let searchTimer: ReturnType<typeof setTimeout>;
 $('#reader-search').oninput = () => {
-  textSearch++;
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => void runReaderSearch(), searchMode === 'text' ? 300 : 0);
+  searchTimer = setTimeout(() => void runReaderSearch(), 0);
 };
 async function runReaderSearch() {
-  const request = ++textSearch;
   const value = $<HTMLInputElement>('#reader-search').value;
   const container = $('#reader-results');
   if (searchMode === 'queue') {
@@ -997,43 +1024,6 @@ async function runReaderSearch() {
     drawIcons();
     return;
   }
-  if (!value.trim()) {
-    container.innerHTML = '<p class="search-message">Escribe una palabra o parte del texto.</p>';
-    return;
-  }
-  if (!reader.pages) {
-    container.innerHTML = '<p class="search-message">Abre un PDF válido para buscar texto.</p>';
-    return;
-  }
-  container.textContent = 'Buscando en el PDF…';
-  try {
-    const results = await reader.search(
-      value,
-      (n, total) => {
-        if (request === textSearch) container.textContent = `Buscando… ${n} de ${total} páginas`;
-      },
-      () => request !== textSearch,
-    );
-    if (request !== textSearch) return;
-    container.innerHTML = results.length
-      ? results
-          .map(
-            (r) =>
-              `<button class="text-result" data-page="${r.page}"><strong>Página ${r.page} ${icon('arrow-up-right')}</strong><span>${escape(r.snippet)}</span></button>`,
-          )
-          .join('')
-      : '<p class="search-message">Sin coincidencias. Si es un PDF escaneado, puede no contener texto que se pueda buscar.</p>';
-    drawIcons();
-    container.querySelectorAll<HTMLElement>('[data-page]').forEach(
-      (b) =>
-        (b.onclick = () => {
-          void goToPage(Number(b.dataset.page));
-          if (window.innerWidth < 700) toggleSearch(false);
-        }),
-    );
-  } catch {
-    if (request === textSearch) container.textContent = 'No se pudo buscar en este PDF.';
-  }
 }
 
 let resizeTimer: ReturnType<typeof setTimeout>;
@@ -1047,6 +1037,18 @@ function scheduleReaderResize() {
 window.addEventListener('resize', scheduleReaderResize);
 window.visualViewport?.addEventListener('resize', scheduleReaderResize);
 document.addEventListener('keydown', (event) => {
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    event.key.toLowerCase() === 'f' &&
+    current &&
+    !$('#reader').hidden &&
+    !document.querySelector('dialog[open]')
+  ) {
+    event.preventDefault();
+    toggleSearch(false);
+    pdfFind.show();
+    return;
+  }
   const typing = (event.target as HTMLElement).matches('input, textarea, select');
   if (event.key === 'Escape' && current && $('#reader').classList.contains('focus-mode')) {
     event.preventDefault();

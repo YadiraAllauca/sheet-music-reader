@@ -56,17 +56,17 @@ Opening an unselected PDF starts with the current folder/search order. Priority 
 
 ## Read a PDF
 
-Use the lower controls to zoom, fit the page to the pane's width, or choose a page number. **← / →** navigate pages. The background toggle changes the space surrounding the PDF; it does not recolor the document itself.
+Scroll down to read consecutive PDF pages in a continuous column. The page indicator and saved reading page follow your scroll position. Use the lower controls to zoom, fit the pages to the pane's width, or jump to a page number. **← / →** jump between pages in the column. The background toggle changes the space surrounding the PDF; it does not recolor the document itself.
 
 **PDF anterior / PDF siguiente** switch files without returning to the library. They follow the reading list for a selected PDF, or the library order and filters captured when you enter the reader, and stop at either end. Opening an unselected result outside the library filters through reader search starts a separate, single-file selection.
 
-On a touch screen, swipe **left for the next PDF** or **right for the previous PDF** inside the score area. Deliberate horizontal swipes change files; vertical movement scrolls the current page. Small drags and multi-finger gestures do not switch files. If the zoomed PDF is wider than its pane, horizontal dragging pans the PDF instead; fit it to the pane to use file swipes again.
+On a touch screen, swipe **left for the next PDF** or **right for the previous PDF** inside the score area. Deliberate horizontal swipes change files; vertical movement scrolls through the PDF's pages. Small drags and multi-finger gestures do not switch files. If the zoomed PDF is wider than its pane, horizontal dragging pans the PDF instead; fit it to the pane to use file swipes again.
 
 Choose **Buscar**:
 
 - **Cola:** review and manage the current and upcoming scores.
 - **Buscar PDFs:** find and open another score by filename or path, or add it to the queue.
-- **En este PDF:** search embedded text and jump to a matching page. Image-only scans need OCR, which Atril does not include.
+- **En este PDF:** open a search bar above the score. Terms are highlighted in the PDF, with the active occurrence in orange and a counter such as **1 de 4**. Use the arrows, **Enter**, or **Shift + Enter** to move through occurrences, including repetitions on the same page. Navigation wraps at either end. **Ctrl + F / Cmd + F** opens this bar while reading, and **Esc** closes it and clears highlights. Search ignores case and accents. Image-only scans need OCR, which Atril does not include.
 
 Favorites and the most recent reading page persist for linked files. Files selected individually keep this information only during the session.
 

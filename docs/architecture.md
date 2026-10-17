@@ -107,13 +107,13 @@ Legacy versions may have stored PDF copies in a separate `atril-library` databas
 
 ## Reader lifecycle
 
-Each pane owns a `PdfReader` instance with its own loaded document, render task, page, zoom, and scroll container. Loading another score or closing a pane cancels rendering and destroys the previous document. Request counters prevent obsolete asynchronous results from replacing a newer selection.
+Each pane owns a `PdfReader` instance with its own loaded document, render task, page, zoom, and scroll container. `continuous-reader.ts` arranges all page canvases in a vertical column with their individual PDF dimensions. It renders visible and nearby pages sequentially and releases distant backing bitmaps while retaining their layout. Scrolling updates the current page and saved progress; page controls and text search jump within the column. Zoom and resize preserve the reading position. Loading another score or closing a pane clears the column, cancels rendering, and destroys the previous document. Request counters prevent obsolete asynchronous results from replacing a newer selection.
 
 The primary reader captures its previous/next-file queue from the ordered reading list when opening a selected score or starting the list; otherwise it uses the visible library selection. The secondary reader selects documents independently and captures an alphabetical file queue for touch navigation. A shared gesture handler distinguishes deliberate single-finger horizontal swipes from vertical scrolling, small drags, and multi-touch. When a PDF overflows its pane horizontally, native panning takes priority over file switching. Both use the same local file access layer and save linked-file progress. If the same score is open twice, its saved progress is the most recently recorded page; there are no separate persistent bookmarks per pane.
 
 Each canvas uses the device's native pixel density, including browser pinch scale, instead of capping every display at DPR 2. Window and visual-viewport resize events schedule a new render in both panes. Backing bitmaps are bounded to 2 ** 25 pixels and 8192 pixels per edge; large zoomed pages may render below native density to limit memory. Source image quality and font embedding still affect the result.
 
-Embedded text is extracted on demand and cached per active document for search. Atril does not run OCR.
+Embedded text is extracted on demand and cached per active document for search. `pdf-search.ts` maps case/accent-normalized matches back to original text-item offsets, including terms split across text runs. `pdf-find.ts` manages the inline search bar, occurrence count, keyboard navigation, and cancellation. Visible matching pages use PDF.js `TextLayer` to align highlights with the canvas; these layers follow page zoom/rotation and are released with distant bitmaps. Atril does not run OCR.
 
 ## Thumbnail work
 

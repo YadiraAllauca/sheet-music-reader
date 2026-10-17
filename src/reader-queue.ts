@@ -118,12 +118,9 @@ export function attachQueueDrag(
       drag.target = row.dataset.queueItem!;
       if (drag.target !== drag.id) row.classList.add('queue-drop-target');
     }
-    const panel = container.closest('.reader-search-panel');
-    if (panel) {
-      const bounds = panel.getBoundingClientRect();
-      if (event.clientY > bounds.bottom - 48) panel.scrollTop += 12;
-      else if (event.clientY < bounds.top + 48) panel.scrollTop -= 12;
-    }
+    const bounds = container.getBoundingClientRect();
+    if (event.clientY > bounds.bottom - 48) container.scrollTop += 12;
+    else if (event.clientY < bounds.top + 48) container.scrollTop -= 12;
   });
   container.addEventListener('pointerup', (event) => {
     if (!drag || drag.pointer !== event.pointerId) return;

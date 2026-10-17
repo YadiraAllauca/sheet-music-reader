@@ -2,6 +2,7 @@ import { matches, title, type Score } from './library';
 import { getFile } from './storage';
 import { PdfReader } from './pdf';
 import { attachFileSwipe } from './file-swipe';
+import { ContinuousReader } from './continuous-reader';
 
 export function createSplitReader(options: {
   scores: () => Score[];
@@ -38,6 +39,17 @@ export function createSplitReader(options: {
   let ready = false;
   let active = false;
   let fileQueue: string[] = [];
+  const continuousReader = new ContinuousReader(
+    reader,
+    $('#secondary-scroll'),
+    $('#secondary-canvas'),
+    (next) => {
+      page = next;
+      controls();
+      void save();
+    },
+    () => options.toast('No se pudo mostrar la segunda partitura.'),
+  );
 
   function search() {
     const value = $<HTMLInputElement>('#secondary-query').value;
@@ -75,16 +87,17 @@ export function createSplitReader(options: {
     if (current?.id === updated.id) current = updated;
   }
 
-  async function render() {
+  async function render(navigate = false) {
     if (!ready || pane.hidden) return;
     const request = generation;
     controls();
     try {
-      await reader.render(
+      $('#secondary-status').hidden = true;
+      await continuousReader.render(
         page,
-        $('#secondary-canvas'),
         Math.max(100, $('#secondary-scroll').clientWidth - 40),
         zoom,
+        navigate,
       );
       if (request !== generation || pane.hidden) return;
       $('#secondary-canvas').hidden = false;
@@ -104,6 +117,7 @@ export function createSplitReader(options: {
         .sort((a, b) => a.name.localeCompare(b.name, 'es', { numeric: true }))
         .map((item) => item.id);
     const request = ++generation;
+    continuousReader.reset();
     ready = false;
     current = score;
     page = score.lastPage;
@@ -139,13 +153,13 @@ export function createSplitReader(options: {
   async function goToPage(next: number) {
     if (!ready || !Number.isFinite(next)) return;
     page = Math.max(1, Math.min(Math.floor(next), reader.pages));
-    $('#secondary-scroll').scrollTop = 0;
-    await render();
+    await render(true);
     await save();
   }
 
   async function close() {
     generation++;
+    continuousReader.reset();
     ready = false;
     current = undefined;
     active = false;
