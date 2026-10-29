@@ -1319,8 +1319,9 @@ test('gestiona la cola desde el lector con arrastre, eliminación y nuevas parti
   await expect(page.locator('#reader-title')).toHaveText('B');
   await page.locator('#close-reader').click();
   await expect(page.locator('#reader')).toBeHidden();
-  await page.getByRole('button', { name: 'Ver cola', exact: true }).click();
-  await expect(page.locator('.score-info h2')).toHaveText(['A', 'C', 'E']);
+  // The sequence came from the library listing, so it never becomes the saved queue.
+  await expect(page.locator('#reading-list-count')).toHaveText('0');
+  await expect(page.locator('#reading-list-toolbar')).toBeHidden();
 });
 
 test('ofrece acciones táctiles amplias y separadas en móvil y tablet', async ({ page }) => {
@@ -1378,4 +1379,61 @@ test('ofrece acciones táctiles amplias y separadas en móvil y tablet', async (
       width,
     );
   }
+});
+
+test('reordenar la secuencia original del lector no llena la cola de la biblioteca', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const buffer = await pdf(['Ensayo']);
+  await page.locator('#file-input').setInputFiles(
+    ['A', 'B', 'C', 'D'].map((name) => ({
+      name: `${name}.pdf`,
+      mimeType: 'application/pdf',
+      buffer,
+    })),
+  );
+  await expect(page.locator('.score-card')).toHaveCount(4);
+  await expect(page.locator('#reading-list-count')).toHaveText('0');
+  await page.getByRole('button', { name: 'Abrir A', exact: true }).click();
+  await expect(page.locator('#pdf-canvas')).toBeVisible();
+  await page.locator('#reader-queue-toggle').click();
+  await expect(page.locator('.queue-normal .queue-score strong')).toHaveText(['B', 'C', 'D']);
+  // Moving one score inside the implicit sequence must not select the whole library.
+  await page.getByRole('button', { name: 'Reordenar D', exact: true }).press('ArrowUp');
+  await expect(page.locator('.queue-normal .queue-score strong')).toHaveText(['B', 'D', 'C']);
+  await page.getByRole('button', { name: 'Quitar B de la cola', exact: true }).click();
+  await expect(page.locator('.queue-normal .queue-score strong')).toHaveText(['D', 'C']);
+  await page.locator('#close-reader').click();
+  await expect(page.locator('#reading-list-count')).toHaveText('0');
+  await expect(
+    page.getByRole('checkbox', { name: 'Añadir C a la cola', exact: true }),
+  ).not.toBeChecked();
+  await expect(page.locator('#reading-list-toolbar')).toBeHidden();
+});
+
+test('guarda el nuevo orden cuando la secuencia del lector viene de la cola', async ({ page }) => {
+  await page.goto('/');
+  const buffer = await pdf(['Ensayo']);
+  await page.locator('#file-input').setInputFiles(
+    ['A', 'B', 'C', 'D'].map((name) => ({
+      name: `${name}.pdf`,
+      mimeType: 'application/pdf',
+      buffer,
+    })),
+  );
+  await expect(page.locator('.score-card')).toHaveCount(4);
+  for (const name of ['A', 'B', 'C'])
+    await page.getByRole('checkbox', { name: `Añadir ${name} a la cola`, exact: true }).check();
+  await expect(page.locator('#reading-list-count')).toHaveText('3');
+  await page.getByRole('button', { name: 'Abrir cola', exact: true }).click();
+  await expect(page.locator('#reader-title')).toHaveText('A');
+  await page.locator('#reader-queue-toggle').click();
+  await expect(page.locator('.queue-normal .queue-score strong')).toHaveText(['B', 'C']);
+  await page.getByRole('button', { name: 'Reordenar C', exact: true }).press('ArrowUp');
+  await expect(page.locator('.queue-normal .queue-score strong')).toHaveText(['C', 'B']);
+  await page.locator('#close-reader').click();
+  await expect(page.locator('#reading-list-count')).toHaveText('3');
+  await page.locator('.reading-list-actions [data-section="reading-list"]').click();
+  await expect(page.locator('.score-info h2')).toHaveText(['A', 'C', 'B']);
 });

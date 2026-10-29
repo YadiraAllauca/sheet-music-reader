@@ -143,6 +143,8 @@ let order = savedLibrary.order;
 let layout = localStorage.getItem('atril-layout') || 'grid';
 let current: Score | undefined;
 let readerQueue: string[] = [];
+// Only a sequence started from the library queue writes its order back to it.
+let sequenceFromReadingList = false;
 let priorityQueue = savedLibrary.priorityQueue || [];
 const readerSequence = new ReaderSequence();
 let page = 1;
@@ -725,9 +727,10 @@ async function openScore(id: string, queue?: string[], entryKey?: string) {
   const score = scores.find((s) => s.id === id);
   if (!score) return;
   if (queue || $('#reader').hidden || !readerQueue.includes(id)) {
+    const fromReadingList = !!queue || readingList.includes(id);
     const normal =
-      queue ||
-      (readingList.includes(id) ? availableReadingList() : visibleScores().map((item) => item.id));
+      queue || (fromReadingList ? availableReadingList() : visibleScores().map((item) => item.id));
+    sequenceFromReadingList = fromReadingList && normal.includes(id);
     readerSequence.start(
       normal.includes(id) ? normal : [id],
       id,
@@ -807,7 +810,7 @@ function saveReaderQueue(persistNormal = false) {
   );
   readerQueue = readerSequence.entries.map((entry) => entry.id);
   priorityQueue = readerSequence.pending;
-  if (persistNormal)
+  if (persistNormal && sequenceFromReadingList)
     readingList = readerSequence.entries.filter((entry) => !entry.queued).map((entry) => entry.id);
   rememberLibrary();
   refresh();
